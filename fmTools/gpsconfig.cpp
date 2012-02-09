@@ -262,12 +262,12 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 	struct termios port_settings; // structure to store the port settings in
 	cfsetispeed(&port_settings, baudrate); // set baud rates
 	cfsetospeed(&port_settings, baudrate);
-	port_settings.c_cflag &= ~PARENB; // set no parity, stop bits, data bits
-	port_settings.c_cflag &= ~CSTOPB;
-	port_settings.c_cflag &= ~CSIZE;
-	port_settings.c_cflag |= CS8;
-	port_settings.c_lflag &= (~ICANON); //
-	port_settings.c_cc[VMIN] = 128;
+//	port_settings.c_cflag &= ~PARENB; // set no parity, stop bits, data bits
+//	port_settings.c_cflag &= ~CSTOPB;
+//	port_settings.c_cflag &= ~CSIZE;
+//	port_settings.c_cflag |= CS8;
+//	port_settings.c_lflag &= (~ICANON); //
+//	port_settings.c_cc[VMIN] = 128;
 
 	cfmakeraw(&port_settings);
 	tcsetattr(file, TCSANOW, &port_settings); // apply the settings to the port
@@ -302,8 +302,8 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 		int count = 10;
 		cout << "before while buf[0] != 0xB5 && --count > 0" << endl;
 		while (buf[0] != 0xB5 && --count > 0) { //find start of ack message
-			read_result = read(file, &(buf[0]), 1);
 			cout << "count: " << count << endl;
+			read_result = read(file, &(buf[0]), 1);
 //			printf("%02X : %i \n", buf[0], read_result);
 		}
 		cout << "after data[2] == 0x06" << endl;

@@ -260,8 +260,8 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 	 * 0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A
 	 */
 	struct termios port_settings; // structure to store the port settings in
-	cfsetispeed(&port_settings, baudrate); // set baud rates
-	cfsetospeed(&port_settings, baudrate);
+//	cfsetispeed(&port_settings, baudrate); // set baud rates
+//	cfsetospeed(&port_settings, baudrate);
 //	port_settings.c_cflag &= ~PARENB; // set no parity, stop bits, data bits
 //	port_settings.c_cflag &= ~CSTOPB;
 //	port_settings.c_cflag &= ~CSIZE;
@@ -269,8 +269,19 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 //	port_settings.c_lflag &= (~ICANON); //
 //	port_settings.c_cc[VMIN] = 128;
 
-	cfmakeraw(&port_settings);
-	tcsetattr(file, TCSANOW, &port_settings); // apply the settings to the port
+	/*Experiment*/
+	port_settings.c_cflag = baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
+	port_settings.c_iflag = IGNPAR | ICRNL;
+	port_settings.c_oflag = 0;
+	port_settings.c_lflag = ICANON;
+	port_settings.c_cc[VMIN] = 1;
+	port_settings.c_cc[VTIME] = 0;
+	tcflush(file, TCIFLUSH);
+	tcsetattr(file, TCSANOW, &port_settings);
+	/*END experiment*/
+
+//	cfmakeraw(&port_settings);
+//	tcsetattr(file, TCSANOW, &port_settings); // apply the settings to the port
 	//	unsigned char send_bytes[] = { 0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8,
 	//			0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A };
 

@@ -282,9 +282,13 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 	//	if (write(file, data, ncommands) != ncommands) { //Send data
 	//		cout << "Warning, error writing configuration to device";
 	//	};
+	cout << "before flush" << endl;
 	tcflush(file, TCIFLUSH);
+	cout << "after flush, before write" << endl;
 	write(file, data, ncommands);
+	cout << "after write, before sync" << endl;
 	fsync(file);
+	cout << "after sync" << endl;
 
 	ssize_t read_result;
 	//unsigned int read_result;
@@ -292,13 +296,17 @@ int send_gps_command(unsigned char data[], int ncommands, const char* device,
 	unsigned char buf[12];
 	buf[0] = 0;
 
+	cout << "Before data[2] == 0x06 check" << endl;
 	if (data[2] == 0x06) { //Only expect ack/nck if we have a cfg message (=0x06)
 
 		int count = 10;
+		cout << "before while buf[0] != 0xB5 && --count > 0" << endl;
 		while (buf[0] != 0xB5 && --count > 0) { //find start of ack message
 			read_result = read(file, &(buf[0]), 1);
+			cout << "count: " << count << endl;
 //			printf("%02X : %i \n", buf[0], read_result);
 		}
+		cout << "after data[2] == 0x06" << endl;
 		if (count <= 0) {
 			printf("I got kicked..!\n");
 			return -1;

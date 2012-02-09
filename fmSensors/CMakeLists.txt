@@ -23,11 +23,11 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_executable(sduimu_node src/global_sensors/sduimu_node.cpp)
 rosbuild_add_executable(gps_node src/global_sensors/gps_node.cpp)
-rosbuild_add_executable(lms111_node src/local_sensors/lms111_node.cpp)
+#rosbuild_add_executable(lms111_node src/local_sensors/lms111_node.cpp)
 
 include_directories(/usr/include/)
 link_directories(/usr/lib/)
-target_link_libraries(lms111_node /usr/lib/libLMS1xx.so)
+#target_link_libraries(lms111_node /usr/lib/libLMS1xx.so)
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)

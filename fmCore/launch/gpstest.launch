@@ -13,30 +13,12 @@
 		</node>
 	</group>
 
-	<group ns="fmProcessors">
-	</group>
-
- 	<group ns="fmDecisionMakers">
-	</group>
-
-	<group ns="fmExecutors">
-	</group>
-
-	<group ns="fmControllers">
-	</group>
-
- 	<group ns="fmActuators">
- 	</group>
-
- 	<group ns="fmKinematics">
-	</group>
-
 	<group ns="fmBSP">
-		<node pkg="fmBSP" name="COM3" type="serial_node" output="screen" >
+		<node pkg="fmBSP" name="GPStty" type="serial_node" output="screen" >
 			<param name="publisher_topic" value="gps_rx" />	 
 			<param name="subscriber_topic" value="gps_tx" />	
-			<param name="device" value="/dev/ttyUSB0" />	
-			<param name="baudrate" value="115200" />
+			<param name="device" value="/dev/ttyS0" />	
+			<param name="baudrate" value="9600" />
 		</node>
 	</group>
 </launch>

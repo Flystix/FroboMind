@@ -22,8 +22,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 
-rosbuild_add_executable(lidar_row_detector src/lidar_feature_extractors/lidar_row_detect_opencv/maize_detection_node.cpp)
-rosbuild_add_executable(lidar_row_detector src/lidar_feature_extractors/lidar_row_detect_opencv/maize_detection.cpp)
+#rosbuild_add_executable(lidar_row_detector src/lidar_feature_extractors/lidar_row_detect_opencv/maize_detection_node.cpp)
+#rosbuild_add_executable(lidar_row_detector src/lidar_feature_extractors/lidar_row_detect_opencv/maize_detection.cpp)
 
 rosbuild_add_executable(gps_state src/global_pose_extractors/gps_state_node.cpp)
 

@@ -1,4 +1,4 @@
 #!/bin/bash
-/usrsrc/Frobomind/fmTools/gpsconfig /dev/ttyS0 9600 /usrsrc/Frobomind/fmTools/flystixconf.txt
+/usrsrc/FroboMind/fmTools/gpsconfig /dev/ttyS0 9600 /usrsrc/FroboMind/fmTools/flystixconf.txt
 
 roslaunch fmCore gpstest.launch

@@ -1,0 +1,16 @@
+<package>
+  <description brief="fmTeleAir">
+
+     fmTeleAir
+
+  </description>
+  <author>Peter</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/fmTeleAir</url>
+  <depend package="roscpp"/>
+  <depend package="fmMsgs"/>
+
+</package>
+
+

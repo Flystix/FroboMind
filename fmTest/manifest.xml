@@ -1,0 +1,18 @@
+<package>
+  <description brief="fmTest">
+
+     fmTest
+
+  </description>
+  <author>root</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/fmTest</url>
+  <depend package="roscpp"/>
+  <depend package="fmMsgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="std_msgs"/>
+
+</package>
+
+

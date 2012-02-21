@@ -10,20 +10,15 @@
   <url>http://ros.org/wiki/fmExtraction</url>
 
   <depend package="geometry_msgs"/>
-#  
-
   <depend package="fmMsgs"/>
-
   <depend package="sensor_msgs"/>
-  <!--
-  <depend package="laser_geometry"/>
-  <depend package="laser_filters"/>
-  <depend package="pcl"/>
-  <depend package="opencv2"/>
-  <depend package="cv_bridge"/>
+  <depend package="mav_msgs"/>
+  <depend package="asctec_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="gps_common"/>
   <depend package="tf"/>
-  -->
-<depend package="visualization_msgs"/>
+  <depend package="ground_station"/>
+  <depend package="visualization_msgs"/>
 
 </package>
 

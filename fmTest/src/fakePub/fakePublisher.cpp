@@ -11,8 +11,6 @@ ros::Publisher b_publisher;
 ros::Publisher t_publisher;
 double fakeVals[8] = { 0 };
 
-
-
 void pos(const ros::TimerEvent&) {/* temp timer callback *//* Send encoded message  */
 //	ROS_WARN("Hoping to publish pos %f, %f, %f", fakeVals[0], fakeVals[1], fakeVals[2]);
 	geometry_msgs::Vector3Stamped tmp;

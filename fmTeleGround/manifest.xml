@@ -1,0 +1,16 @@
+<package>
+  <description brief="fmTeleGround">
+
+     fmTeleGround
+
+  </description>
+  <author>Peter</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/fmTeleGround</url>
+  <depend package="roscpp"/>
+  <depend package="fmMsgs"/>
+
+</package>
+
+

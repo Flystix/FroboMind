@@ -1,0 +1,10 @@
+<!-- GROUND STATION -->
+<launch>
+	<group ns="fmTeleGround">
+   	 	<node pkg="fmTeleGround" name="fmTeleGround" type="fmTeleGround" output="screen">
+			<param name="device" value="/dev/ttyUSB0" />	
+			<param name="baudrate" value="115200" />
+		</node>
+	</group>
+</launch>
+

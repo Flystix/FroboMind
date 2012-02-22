@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 	ros::Publisher tele_pub = nh.advertise<fmMsgs::teleAir2Ground>("/teleData", 1);
 
 	n.param<int> ("baudrate", baudRate, 115200);
-	n.param<std::string> ("device", device, "/dev/ttyS2");
+	n.param<std::string> ("device", device, "/dev/ttyUSB0");
 
 	int fd = ttySetup(baudRate, device.c_str());
 

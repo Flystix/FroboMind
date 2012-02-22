@@ -1,6 +1,6 @@
 # Telemetry message to be transfered from Airframe to Groundstation
 Header header		
-fmVector3 orientation	# Orientation vector (ϕ, θ, ψ)
+fmVector3 orientation	# Orientation vector (roll, pitch, yaw) [rad/s]
 fmVector3 position	# Position vectos (Pn, Pe, Alt)
 float64 airspeed	# Speed through air (Pitot measure) [m/s]
 float64 truespeed	# True airspeed (wind compendsated) [m/s]

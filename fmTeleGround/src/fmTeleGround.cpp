@@ -20,9 +20,10 @@ int main(int argc, char** argv) {
 	ros::init(argc, argv, "fmTeleNode");
 	ros::NodeHandle nh;
 	ros::NodeHandle n("~");
-
 	int baudRate;
 	std::string device;
+
+	ros::Publisher tele_pub = nh.advertise<fmMsgs::teleAir2Ground>("/teleData", 1);
 
 	n.param<int> ("baudrate", baudRate, 115200);
 	n.param<std::string> ("device", device, "/dev/ttyS2");
@@ -36,7 +37,8 @@ int main(int argc, char** argv) {
 	uint8_t msg_chksum;
 	while (ros::ok()) {
 		while (ros::ok()) {
-			uint32_t len = unslip_pkg(fd, buf, 512);
+			uint32_t len = unslip_pkg(fd, buf, 512); // Only returns when package is received...
+
 			if (len < 8) {
 				printf("Package to small (len = %i) - skipping\n", len);
 				break;
@@ -64,10 +66,6 @@ int main(int argc, char** argv) {
 				break;
 			}
 
-			for (uint32_t i = 0 ; i < len ; i++)
-				printf("%02X ", buf[i]);
-			printf("\n");
-
 			fmMsgs::teleAir2Ground msg_in;
 
 			boost::shared_array<uint8_t> bufIn(new uint8_t[msg_size]);
@@ -77,7 +75,7 @@ int main(int argc, char** argv) {
 			switch(msg_type) {
 			case 0x1000:
 				ros::serialization::deserialize(streamIn, msg_in);
-				std::cout << msg_in;
+				tele_pub.publish(msg_in);
 				break;
 			default:
 				printf("Unknown message type...\n");

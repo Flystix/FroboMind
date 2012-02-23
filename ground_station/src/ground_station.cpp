@@ -222,25 +222,25 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	/************* altimeter */
 	if (IS_GTK_ALTIMETER (data->alt))
 		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt),
-				(double) telemetryData_.position.z);
+				(double) telemetryData_.airframe.alt);
 
 	/************* speedometer */
 	if (IS_GTK_GAUGE (data->gauge1))
 		gtk_gauge_set_value(GTK_GAUGE (data->gauge1),
-				(double) (telemetryData_.airspeed));
+				(double) (telemetryData_.airframe.airspeed));
 
 	/************* battery, cpu, mem */
 	if (IS_GTK_BAR_GAUGE (data->bg))
 		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1,
-				(double) (telemetryData_.battery ));
+				(double) (telemetryData_.sys.battery));
 
 	if (IS_GTK_BAR_GAUGE (data->bg))
 		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2,
-				(double) 100-telemetryData_.cpuload);
+				(double) 100-telemetryData_.sys.cpuload);
 
 	if (IS_GTK_BAR_GAUGE (data->bg))
 		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3,
-				(double) 100-telemetryData_.memutil);
+				(double) 100-telemetryData_.sys.memutil);
 
 	/************* Variometer, swap with turn coordinator */
 //	if (IS_GTK_VARIOMETER (data->vario))
@@ -251,32 +251,37 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	if (IS_GTK_COMPASS (data->comp))
 		gtk_compass_set_angle(
 				GTK_COMPASS (data->comp),
-				(double) (((int) (RAD2DEG(telemetryData_.orientation.z) * 1000)
-						+ 360000) % 360000) / 1000);
+				RAD2DEG(telemetryData_.airframe.pose.z));
 
 	/************* artificial horizon */
+	gdouble roll  = RAD2DEG(telemetryData_.airframe.pose.x);
+	gdouble pitch = RAD2DEG(telemetryData_.airframe.pose.y);
+	pitch = pitch >  70 ?  70 : pitch;
+	pitch = pitch < -70 ? -70 : pitch;
+
 	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
 		gtk_artificial_horizon_set_value(
-				GTK_ARTIFICIAL_HORIZON (data->arh),
-				(double) (((int) (RAD2DEG(telemetryData_.orientation.x) * 1000)
-						+ 360000) % 360000) / 1000,
-				(double) -RAD2DEG(telemetryData_.orientation.y));
+				 GTK_ARTIFICIAL_HORIZON (data->arh),
+				 RAD2DEG(telemetryData_.airframe.pose.x),
+				 pitch);
 
 	/************* GPS map */
 	gint pixel_x, pixel_y;
 
 	OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(
-			telemetryData_.position.x, telemetryData_.position.y); // lat, lon
-	osm_gps_map_convert_geographic_to_screen(data->map, point, &pixel_x,
-			&pixel_y);
+							telemetryData_.airframe.lat,
+							telemetryData_.airframe.lon); // lat, lon
+	osm_gps_map_convert_geographic_to_screen(data->map,
+							point, &pixel_x, &pixel_y);
 
 	if (OSM_IS_GPS_MAP (data->map)) {
 
 		// **** Center map on gps data received
 		if (data->lock_view) {
 			update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
-			osm_gps_map_set_center(data->map, telemetryData_.position.x,
-					telemetryData_.position.y); // lat, lon
+			osm_gps_map_set_center(data->map,
+							telemetryData_.airframe.lat,
+							telemetryData_.airframe.lon); // lat, lon
 		} else {
 			update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
 			osm_gps_map_gps_clear(data->map);

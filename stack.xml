@@ -9,4 +9,8 @@
   <review status="unreviewed" notes=""/>
   <url>http://commingup.com</url>
   <depend stack="ros"/>
+  <depend stack="asctec_drivers" />
+  <depend stack="common_msgs" />
+  <depend stack="geometry" />
+  <depend stack="gps_umd" />
 </stack>

@@ -41,17 +41,40 @@ const std::string heightTopic = "/mav/pressure_height_filtered";
 const std::string imuCalcDataTopic = "/asctec/IMU_CALCDATA";
 const std::string gpsDataTopic = "/fix";
 const std::string llStatusTopic = "/asctec/LL_STATUS";
+const std::string telemetryTopic = "/teleData";
 
 ros::Publisher gps_publisher;
 ros::Publisher bat_publisher;
 ros::Publisher var_comp_publisher;
 ros::Publisher alt_publisher;
 ros::Publisher comp_arth_publisher;
+ros::Publisher telemetry_publisher;
 
 fmMsgs::teleAir2Ground air2ground;
 int flip = 0;
 double fakebat = 0;
 double theta = 0;
+
+void allInOneTelemetry(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
+	air2ground = (*msg);
+//Dummy data
+	air2ground.airspeed = 0.0;
+	air2ground.battery = 0.0;
+	air2ground.cpuload = 0.0;
+	air2ground.gps_fix = 0.0;
+	air2ground.gps_sats = 0.0;
+	air2ground.groundspeed = 0.0;
+	air2ground.memutil = 0.0;
+	air2ground.orientation.x = 0.0;
+	air2ground.orientation.y = 0.0;
+	air2ground.orientation.z = 0.0;
+	air2ground.position.x = 0.0;
+	air2ground.position.y = 0.0;
+	air2ground.position.z = 0.0;
+	air2ground.truespeed = 0.0;
+
+	telemetry_publisher.publish(air2ground);
+}
 
 void xbeeCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 //Handle input message
@@ -87,31 +110,33 @@ void updateTelemetry(const ros::TimerEvent&) {
 	}
 	flip = !flip;
 
-	asctec_msgs::LLStatus battery; // -> GAUGE
+	asctec_msgs::LLStatus lowlevel; // -> GAUGE
 
-	battery.battery_voltage_1 = (9 * fakebat + 9) * 1000;
+	lowlevel.battery_voltage_1 = (9 * fakebat + 9) * 1000;
+	lowlevel.cpu_load = 80;
+	lowlevel.battery_voltage_2 = 50;
 
-	asctec_msgs::IMUCalcData imuCalc; //VARIOMETER and COMPASS
-	imuCalc.angle_yaw;
-	imuCalc.angle_nick;
-	imuCalc.angle_roll;
-	imuCalc.dheight;
-	imuCalc.mag_heading;
+//	asctec_msgs::IMUCalcData imuCalc; //VARIOMETER and COMPASS
+//	imuCalc.angle_yaw = air2ground.orientation.x;
+//	imuCalc.angle_nick = air2ground.orientation.y;
+//	imuCalc.angle_roll = air2ground.orientation.z;
+//	imuCalc.dheight = 0;
+//	imuCalc.mag_heading = 0;
 
 	mav_msgs::Height height; // -> ALTIMETER
-	air2ground.position.z += 0.1;
 	height.height = air2ground.position.z;
 	height.climb = 1.0;
 
 	sensor_msgs::Imu imu; // -> COMPASS and ARTIFICIAL_HORIZON
-	imu.orientation.x = air2ground.orientation.x; //quaternion rot, maybe change, alle we need is euler
-	imu.orientation.y = air2ground.orientation.y;
-	imu.orientation.z = air2ground.orientation.z;
+	imu.orientation.x = fakebat; //air2ground.orientation.x; //quaternion rot, maybe change, alle we need is euler
+	imu.orientation.y = fakebat; //air2ground.orientation.y; // Treat as eulers
+
+	imu.orientation.z = fakebat;/*compass angle, radians*/ //air2ground.orientation.z;
 //	imu.orientation.w;
 
 	gps_publisher.publish(gps);
-	bat_publisher.publish(battery);
-	var_comp_publisher.publish(imuCalc);
+	bat_publisher.publish(lowlevel);
+//	var_comp_publisher.publish(imuCalc);
 	alt_publisher.publish(height);
 	comp_arth_publisher.publish(imu);
 }
@@ -148,14 +173,15 @@ int main(int argc, char **argv) {
 
 	ros::Subscriber sub = n.subscribe(subscribe_topic_id, 10, xbeeCallback);
 
-	gps_publisher = n.advertise<gps_common::GPSFix>(gpsDataTopic, 1);
-	bat_publisher = n.advertise<asctec_msgs::LLStatus>(llStatusTopic, 1);
-	var_comp_publisher = n.advertise<asctec_msgs::IMUCalcData>(imuCalcDataTopic,
-			1);
-	alt_publisher = n.advertise<mav_msgs::Height>(heightTopic, 1);
-	comp_arth_publisher = n.advertise<sensor_msgs::Imu>(imuTopic, 1);
+//	gps_publisher = n.advertise<gps_common::GPSFix>(gpsDataTopic, 1);
+//	bat_publisher = n.advertise<asctec_msgs::LLStatus>(llStatusTopic, 1);
+//	var_comp_publisher = n.advertise<asctec_msgs::IMUCalcData>(imuCalcDataTopic,
+//			1);
+//	alt_publisher = n.advertise<mav_msgs::Height>(heightTopic, 1);
+//	comp_arth_publisher = n.advertise<sensor_msgs::Imu>(imuTopic, 1);
 
-	ros::Timer timer1 = nh.createTimer(ros::Duration(0.1), updateTelemetry);
+	ros::Timer timer = nh.createTimer(ros::Duration(0.1), allInOneTelemetry);
+//	ros::Timer timer1 = nh.createTimer(ros::Duration(0.1), updateTelemetry);
 
 	ros::spin();
 	return 0;

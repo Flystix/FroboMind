@@ -1,3 +1,3 @@
 # Vector containing gyro readings and header
-Header header
+time stamp
 fmVector3 vector

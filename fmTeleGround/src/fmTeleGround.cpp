@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
 			case 0x1000:
 				ros::serialization::deserialize(streamIn, msg_in);
 				tele_pub.publish(msg_in);
+				std::cout << msg_in << std::endl;
 				break;
 			default:
 				printf("Unknown message type...\n");

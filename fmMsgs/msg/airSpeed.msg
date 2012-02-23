@@ -1,3 +1,3 @@
 # Airspeed
+time stamp
 float32 airspeed
-Header header

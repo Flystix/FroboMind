@@ -294,7 +294,7 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	/************* Status bar */
 	char buf[FILENAME_MAX];
 
-	if (telemetryData_.gps_fix > 0) { //GPS fix/noFix icon
+	if (telemetryData_.sys.gps_fix > 0) { //GPS fix/noFix icon
 		gtk_widget_hide(data->status_fail_icon_gps);
 		gtk_widget_show(data->status_ok_icon_gps);
 	} else {
@@ -302,7 +302,7 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 		gtk_widget_show(data->status_fail_icon_gps);
 	}
 
-	sprintf(buf, "%d", telemetryData_.cpuload);
+	sprintf(buf, "% 3.0f%%", telemetryData_.sys.cpuload);
 		gtk_label_set_text(GTK_LABEL (data->cpuLoad_label), buf);
 
 //	sprintf(buf, "%d", llStatus_.flightMode);

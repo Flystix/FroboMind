@@ -1,0 +1,14 @@
+# State message for airframe.
+Header header
+float64 airspeed		# Indicated airspeed [m/s]
+fmVector3 pose			# Roll, pitch, yaw [rad]
+float64 Pn			# UTM Northing [m]
+float64 Pe			# UTM Easting [m]
+float64 alt			# Altitude above sea level [m]
+float64 dist			# Altitude above ground [m]
+float64 lon			# Longitude [degrees]
+float64 lat			# Latitude [degrees]
+float64 Wn			# Estimated wind, north [m/s]
+float64 We			# Estimated wind, east [m/s]
+float64 climb			# Climb rate [m/s]
+float64 incline			# For turn coordinator [rad]

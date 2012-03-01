@@ -60,6 +60,8 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
+#include <fmMsgs/teleAir2Ground.h>
+
 #include <ground_station/gui/ground_station_appdata.h>
 #include <ground_station/gui/gtkaltimeter.h>
 #include <ground_station/gui/gtkvariometer.h>
@@ -106,9 +108,6 @@ asctec_msgs::LLStatus llStatus_;
 fmMsgs::teleAir2Ground telemetryData_;
 
 void *startROS (void *);
-void imuCalcDataCallback (const asctec_msgs::IMUCalcDataConstPtr &);
-void gpsDataCallback (const asctec_msgs::GPSDataConstPtr &);
-void llStatusCallback (const asctec_msgs::LLStatusConstPtr &);
 void telemetryCallback (const fmMsgs::teleAir2Ground &);
 gboolean widgets_update (gpointer dat);
 

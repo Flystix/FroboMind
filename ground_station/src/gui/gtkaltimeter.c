@@ -1127,7 +1127,9 @@ static void gtk_altimeter_draw_digital (GtkWidget * alt, cairo_t * cr)
   double y = priv->y;
   double radius = priv->radius;
   char str[GTK_ALTIMETER_MAX_STRING];
-  int altitu = priv->altitude * 1000;
+//  int altitu = priv->altitude * 1000000;
+  static int altitu = 0;
+  altitu = altitu * 0.9 + priv->altitude * 1000000 * 0.1;
 
   cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size (cr, 0.20 * radius);
@@ -1187,7 +1189,8 @@ static void gtk_altimeter_draw_hands (GtkWidget * alt, cairo_t * cr)
   double y = priv->y;
   double radius = priv->radius;
   int factor = 1;
-  int altitu = priv->altitude * 1000;
+  static int altitu = 0;
+  altitu = altitu * 0.9 + priv->altitude * 100000 * 0.1;
 
   // 10 thousand hand
   cairo_save (cr);

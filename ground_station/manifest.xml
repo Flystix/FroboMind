@@ -1,5 +1,5 @@
 <package>
-  <description brief="ground_station">
+  <description brief="org_ground_station">
 
      ground_station is a package for ROS that typicaly subscribe to several topics and update an Gtk+ based GUI.
      It is made for the CityFlyer research project of the CCNY Robotics lab.
@@ -20,10 +20,9 @@
   <depend package="std_msgs"/>
   <depend package="gps_common"/>
   <depend package="tf"/>
+  <depend package="fmMsgs"/>
   <rosdep name="glade2"/>
   <rosdep name="gtkglext1"/>
-  <depend package="fmMsgs"/> 
-
 </package>
 
 

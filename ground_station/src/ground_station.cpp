@@ -32,263 +32,91 @@
  */
 
 #include <ground_station/ground_station.h>
+#include <fmMsgs/teleAir2Ground.h>
+#include <unistd.h>
 
 AppData *data;
 
-void imuCallback(const sensor_msgs::ImuConstPtr & imu) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-	imuData_ = (*imu);
-
-	double yaw, pitch, roll;
-//	btQuaternion orientation;
-//	orientation.setX(imuData_.orientation.x);
-//	orientation.setY(imuData_.orientation.y);
-//	orientation.setZ(imuData_.orientation.z);
-//	orientation.setW(imuData_.orientation.w);
-//	btMatrix3x3(orientation).getRPY(roll, pitch, yaw);
-	roll = imuData_.orientation.x;
-	pitch = imuData_.orientation.y;
-	yaw = imuData_.orientation.z;
-
-	ROS_DEBUG(
-			"Yaw %f, Pitch %f, Roll %f, RollBis %f", RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), (double)(((int)(RAD2DEG(roll)*1000)+360000)%360000)/1000);
-
-	//~ if (IS_GTK_ALTIMETER (data->alt))
-	//~ gtk_altimeter_set_alti (GTK_ALTIMETER (data->alt), (double) (imuCalcData_.height / 1000.));
-//~ 
-	//~ if (IS_GTK_VARIOMETER (data->vario))
-	//~ gtk_variometer_set_value (GTK_VARIOMETER (data->vario), (double) (imuCalcData_.dheight / 1000.)*3600);
-//~ 
-	//~ if (IS_GTK_COMPASS (data->comp))
-	//~ gtk_compass_set_angle (GTK_COMPASS (data->comp), (double) (imuCalcData_.mag_heading / 1000.));
-
-	if (IS_GTK_COMPASS (data->comp))
-		gtk_compass_set_angle(
-				GTK_COMPASS (data->comp),
-				(double) (((int) (RAD2DEG(yaw) * 1000) + 360000) % 360000)
-						/ 1000);
-
-	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
-		gtk_artificial_horizon_set_value(
-				GTK_ARTIFICIAL_HORIZON (data->arh),
-				(double) (((int) (RAD2DEG(roll) * 1000) + 360000) % 360000)
-						/ 1000, (double) -RAD2DEG(pitch));
-
-	// **** release GTK thread lock
-	gdk_threads_leave();
-}
-
-void heightCallback(const mav_msgs::Height::ConstPtr& height) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-	heightData_ = (*height);
-
-	ROS_DEBUG(
-			"Climb %fm/s %fm/min\n", heightData_.climb, heightData_.climb*3600);
-
-	if (IS_GTK_ALTIMETER (data->alt))
-		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt),
-				(double) heightData_.height);
-
-	//~ if (IS_GTK_VARIOMETER (data->vario))
-	//~ gtk_variometer_set_value (GTK_VARIOMETER (data->vario), (double) (heightData_.climb)*3600);
-
-	// **** release GTK thread lock
-	gdk_threads_leave();
-}
-
-void imuCalcDataCallback(const asctec_msgs::IMUCalcDataConstPtr & dat) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-
-	imuCalcData_ = (*dat);
-
-	ROS_DEBUG(
-			"imuCalcData yaw %f, pitch %f, roll %f\n", (double)imuCalcData_.angle_yaw /1000., (double)imuCalcData_.angle_nick/1000., (double)imuCalcData_.angle_roll/1000.);
-
-	if (IS_GTK_VARIOMETER (data->vario))
-		gtk_variometer_set_value(GTK_VARIOMETER (data->vario),
-				(double) (imuCalcData_.dheight / 1000.) * 3600);
-
-	if (IS_GTK_COMPASS (data->comp))
-		gtk_compass_set_angle(GTK_COMPASS (data->comp),
-				(double) (imuCalcData_.mag_heading / 1000.));
-
-	// **** release GTK thread lock
-	gdk_threads_leave();
-}
-
-void gpsFixCallback(const gps_common::GPSFix::ConstPtr & msg) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-
-	gint pixel_x, pixel_y;
-
-	if (msg->status.status >= 0) {
-		gtk_widget_hide(data->status_fail_icon_gps);
-		gtk_widget_show(data->status_ok_icon_gps);
-	} else {
-		gtk_widget_hide(data->status_ok_icon_gps);
-		gtk_widget_show(data->status_fail_icon_gps);
-	}
-
-	OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(msg->latitude,
-			msg->longitude);
-	osm_gps_map_convert_geographic_to_screen(data->map, point, &pixel_x,
-			&pixel_y);
-
-	if (OSM_IS_GPS_MAP (data->map)) {
-
-		// **** Center map on gps data received
-		if (data->lock_view) {
-			update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
-			osm_gps_map_set_center(data->map, msg->latitude, msg->longitude);
-		} else {
-			update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
-			osm_gps_map_gps_clear(data->map);
-		}
-
-		// **** Add point to the track
-		osm_gps_map_track_add_point(data->uav_track, point);
-	}
-
-	// **** release GTK thread lock
-	gdk_threads_leave();
-}
-
-void llStatusCallback(const asctec_msgs::LLStatusConstPtr & dat) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-
-	llStatus_ = (*dat);
-	char buf[FILENAME_MAX];
-
-	// **** update altimeter
-	if (IS_GTK_GAUGE (data->gauge1))
-		gtk_gauge_set_value(GTK_GAUGE (data->gauge1),
-				(double) (llStatus_.battery_voltage_1 / 1000.));
-
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1,
-				(double) (llStatus_.battery_voltage_1 / 1000.));
-
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2,
-				(double) llStatus_.cpu_load);
-
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3,
-				(double) llStatus_.battery_voltage_2);
-
-	/*if(llStatus_.flying==0)
-	 {
-	 gtk_container_remove(GTK_CONTAINER(data->box_Flying),GTK_WIDGET (data->status_ok_icon_flying));
-	 gtk_box_pack_end (GTK_BOX (data->box_Flying),data->status_fail_icon_flying, TRUE, TRUE, 0);
-	 }
-	 else
-	 {
-	 gtk_container_remove(GTK_CONTAINER(data->box_Flying),GTK_WIDGET (data->status_fail_icon_flying));
-	 gtk_box_pack_end (GTK_BOX (data->box_Flying),data->status_ok_icon_flying, TRUE, TRUE, 0);
-	 }
-	 if(llStatus_.motors_on==0)
-	 {
-	 gtk_container_remove(GTK_CONTAINER(data->box_MotorStatus),GTK_WIDGET (data->status_ok_icon_motor));
-	 gtk_box_pack_end (GTK_BOX (data->box_MotorStatus),data->status_fail_icon_motor, TRUE, TRUE, 0);
-	 }
-	 else
-	 {
-	 gtk_container_remove(GTK_CONTAINER(data->box_MotorStatus),GTK_WIDGET (data->status_fail_icon_motor));
-	 gtk_box_pack_end (GTK_BOX (data->box_MotorStatus),data->status_ok_icon_motor, TRUE, TRUE, 0);
-	 } */
-
-	sprintf(buf, "%d", llStatus_.flightMode);
-	gtk_label_set_text(GTK_LABEL (data->flightMode_label), buf);
-
-	sprintf(buf, "%d", llStatus_.up_time);
-	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
-
-	sprintf(buf, "%d", llStatus_.cpu_load);
-	gtk_label_set_text(GTK_LABEL (data->cpuLoad_label), buf);
-
-	// **** release GTK thread lock
-	gdk_threads_leave();
-}
 void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	// **** get GTK thread lock
 	gdk_threads_enter();
 	telemetryData_ = (*msg);
 
-	/************* altimeter */
-	if (IS_GTK_ALTIMETER (data->alt))
-		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt),
-				(double) telemetryData_.airframe.alt);
-
 	/************* speedometer */
+	double airspeed = telemetryData_.airframe.airspeed;
+	airspeed = airspeed < 0 ? 0 : airspeed;
 	if (IS_GTK_GAUGE (data->gauge1))
-		gtk_gauge_set_value(GTK_GAUGE (data->gauge1),
-				(double) (telemetryData_.airframe.airspeed));
+		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
 
-	/************* battery, cpu, mem */
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1,
-				(double) (telemetryData_.sys.battery));
+	/************* altimeter */
+	double altitude = telemetryData_.airframe.alt;
+	altitude = altitude < 0 ? 0 : altitude;
 
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2,
-				(double) 100-telemetryData_.sys.cpuload);
-
-	if (IS_GTK_BAR_GAUGE (data->bg))
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3,
-				(double) 100-telemetryData_.sys.memutil);
-
-	/************* Variometer, swap with turn coordinator */
-//	if (IS_GTK_VARIOMETER (data->vario))
-//		gtk_variometer_set_value(GTK_VARIOMETER (data->vario),
-//				(double) (telemetryData_.dheight / 1000.) * 3600);
-
-	/************* compass */
-	if (IS_GTK_COMPASS (data->comp))
-		gtk_compass_set_angle(
-				GTK_COMPASS (data->comp),
-				RAD2DEG(telemetryData_.airframe.pose.z));
+	if (IS_GTK_ALTIMETER (data->alt))
+		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt), altitude);
 
 	/************* artificial horizon */
-	gdouble roll  = RAD2DEG(telemetryData_.airframe.pose.x);
+	gdouble roll = -RAD2DEG(telemetryData_.airframe.pose.x);
 	gdouble pitch = RAD2DEG(telemetryData_.airframe.pose.y);
-	pitch = pitch >  70 ?  70 : pitch;
+
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+	pitch = pitch > 70 ? 70 : pitch;
 	pitch = pitch < -70 ? -70 : pitch;
 
 	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
-		gtk_artificial_horizon_set_value(
-				 GTK_ARTIFICIAL_HORIZON (data->arh),
-				 RAD2DEG(telemetryData_.airframe.pose.x),
-				 pitch);
+		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
+
+	/************* Turn coordinator */
+	gdouble incline = -RAD2DEG(telemetryData_.airframe.incline) * 4;
+	roll = RAD2DEG(telemetryData_.airframe.pose.x);
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+	incline = incline > 70 ? 70 : incline;
+	incline = incline < -70 ? -70 : incline;
+	if (IS_GTK_TURN_COORDINATOR(data->tc))
+		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, incline);
+
+	/************* compass */
+	gdouble yaw = RAD2DEG(telemetryData_.airframe.pose.z);
+	yaw = yaw > 360 ? yaw - 360 : yaw;
+	yaw = yaw < 0 ? yaw + 360 : yaw;
+	if (IS_GTK_COMPASS (data->comp))
+		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
+
+	/************* battery, cpu, mem */
+
+	double cpu_load = (double) 100 - telemetryData_.sys.cpuload;
+	double memutil = (double) 100 - telemetryData_.sys.memutil;
+	double battery = (double) telemetryData_.sys.battery;
+
+	if (IS_GTK_BAR_GAUGE (data->bg)) {
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1, battery);
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2, cpu_load);
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3, memutil);
+	}
 
 	/************* GPS map */
 	gint pixel_x, pixel_y;
+	if (telemetryData_.sys.gps_fix > 0) { //GPS fix/noFix icon
+		OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(telemetryData_.airframe.lat,
+		                                                      telemetryData_.airframe.lon); // lat, lon
+		osm_gps_map_convert_geographic_to_screen(data->map, point, &pixel_x, &pixel_y);
 
-	OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(
-							telemetryData_.airframe.lat,
-							telemetryData_.airframe.lon); // lat, lon
-	osm_gps_map_convert_geographic_to_screen(data->map,
-							point, &pixel_x, &pixel_y);
+		if (OSM_IS_GPS_MAP (data->map)) {
+			// **** Center map on gps data received
+			if (data->lock_view) {
+				update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
+				osm_gps_map_set_center(data->map, telemetryData_.airframe.lat,
+				                       telemetryData_.airframe.lon); // lat, lon
+			} else {
+				update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
+				osm_gps_map_gps_clear(data->map);
+			}
 
-	if (OSM_IS_GPS_MAP (data->map)) {
-
-		// **** Center map on gps data received
-		if (data->lock_view) {
-			update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
-			osm_gps_map_set_center(data->map,
-							telemetryData_.airframe.lat,
-							telemetryData_.airframe.lon); // lat, lon
-		} else {
-			update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
-			osm_gps_map_gps_clear(data->map);
+			// **** Add point to the track
+			osm_gps_map_track_add_point(data->uav_track, point);
 		}
-
-		// **** Add point to the track
-		osm_gps_map_track_add_point(data->uav_track, point);
 	}
 
 	/************* Status bar */
@@ -303,19 +131,17 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	}
 
 	sprintf(buf, "% 3.0f%%", telemetryData_.sys.cpuload);
-		gtk_label_set_text(GTK_LABEL (data->cpuLoad_label), buf);
+	gtk_label_set_text(GTK_LABEL (data->cpuLoad_label), buf);
 
-//	sprintf(buf, "%d", llStatus_.flightMode);
-//	gtk_label_set_text(GTK_LABEL (data->flightMode_label), buf);
+	//	sprintf(buf, "%d", llStatus_.flightMode);
+	//	gtk_label_set_text(GTK_LABEL (data->flightMode_label), buf);
 
-//	sprintf(buf, "%d", llStatus_.up_time);
-//	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
-
+	//	sprintf(buf, "%d", llStatus_.up_time);
+	//	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
 
 
 	gdk_threads_leave();
 }
-
 /**
  * @fn void *startROS (void *user)
  * @brief ROS thread.
@@ -335,201 +161,174 @@ void *startROS(void *user) {
 
 		std::string local_path;
 		std::string package_path = ros::package::getPath(ROS_PACKAGE_NAME);
-		ros::NodeHandle n_param("~");
+		ros::NodeHandle np("~");
 		XmlRpc::XmlRpcValue xml_marker_center;
 
-		ROS_INFO("Starting CityFlyer Ground Station");
+		ROS_INFO ("Starting CityFlyer Ground Station");
 
 		// -----------------------------------------------------------------
 		// **** General window parameters
-		if (!n_param.getParam("window_grayscale_color", data->grayscale_color))
+		if (!np.getParam("window_grayscale_color", data->grayscale_color))
 			data->grayscale_color = false;
 		ROS_DEBUG("\tWindow grayscale color: %d", data->grayscale_color);
 
-		if (!n_param.getParam("window_radial_color", data->radial_color))
+		if (!np.getParam("window_radial_color", data->radial_color))
 			data->radial_color = true;
 		ROS_DEBUG("\tWindow radial color: %d", data->radial_color);
 
-		if (!n_param.getParam("telemetry_refresh_rate",
-				data->telemetry_refresh_rate))
-			data->telemetry_refresh_rate = 200;
-		ROS_DEBUG("\tTelemetry refresh_rate: %d", data->telemetry_refresh_rate);
-
-		// -----------------------------------------------------------------
-		// **** Altimeter parameters
-		if (!n_param.getParam("altimeter_unit_is_feet",
-				data->altimeter_unit_is_feet))
-			data->altimeter_unit_is_feet = true;
-		ROS_DEBUG("\tAltimeter unit is FEET: %d", data->altimeter_unit_is_feet);
-
-		if (!n_param.getParam("altimeter_step_value",
-				data->altimeter_step_value))
-			data->altimeter_step_value = 100;
-		ROS_DEBUG("\tAltimeter step value: %d", data->altimeter_step_value);
-
-		// -----------------------------------------------------------------
-		// **** Variometer parameters
-		/**
-		 * @todo check the variometer value computation
-		 */
-		data->variometer_unit_is_feet = data->altimeter_unit_is_feet;
-		ROS_DEBUG(
-				"\tVariometer unit is FEET: %d", data->variometer_unit_is_feet);
-
-		if (!n_param.getParam("variometer_step_value",
-				data->variometer_step_value))
-			data->variometer_step_value = 100;
-		ROS_DEBUG("\tVariometer step value: %d", data->variometer_step_value);
+		np.param<int> ("telemetry_refresh_rate", data->telemetry_refresh_rate, 50);
+		data->telemetry_refresh_rate = (int) round((float) (1000 / data->telemetry_refresh_rate));
+		ROS_WARN("\tTelemetry refreshing every %d ms", data->telemetry_refresh_rate);
 
 		// -----------------------------------------------------------------
 		// **** Gauge1 parameters
-		std::string gauge1_name, gauge1_unit, gauge1_color_strip,
-				gauge1_sub_step;
+		std::string gauge1_name, gauge1_unit, gauge1_color_strip, gauge1_sub_step;
 
-		n_param.param("gauge1_name", gauge1_name, std::string("Gauge 1"));
-		n_param.param("gauge1_unit", gauge1_unit, std::string("(unit)"));
+		np.param("gauge1_name", gauge1_name, std::string("Gauge 1"));
+		np.param("gauge1_unit", gauge1_unit, std::string("(unit)"));
 		sprintf(data->gauge1_name_f,
-				"<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
-				gauge1_name.c_str(), gauge1_unit.c_str());
-		ROS_DEBUG("\tGauge 1 name : %s", data->gauge1_name_f);
+		        "<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
+		        gauge1_name.c_str(), gauge1_unit.c_str());
+		ROS_DEBUG ("\tGauge 1 name : %s", data->gauge1_name_f);
 
-		if (!n_param.getParam("gauge1_start_value", data->gauge1_start_value))
+		if (!np.getParam("gauge1_start_value", data->gauge1_start_value))
 			data->gauge1_start_value = 0;
-		ROS_DEBUG("\tGauge 1 start value: %d", data->gauge1_start_value);
+		ROS_DEBUG ("\tGauge 1 start value: %d", data->gauge1_start_value);
 
-		if (!n_param.getParam("gauge1_end_value", data->gauge1_end_value))
+		if (!np.getParam("gauge1_end_value", data->gauge1_end_value))
 			data->gauge1_end_value = 100;
-		ROS_DEBUG("\tGauge 1 end value: %d", data->gauge1_end_value);
+		ROS_DEBUG ("\tGauge 1 end value: %d", data->gauge1_end_value);
 
-		if (!n_param.getParam("gauge1_initial_step", data->gauge1_initial_step))
+		if (!np.getParam("gauge1_initial_step", data->gauge1_initial_step))
 			data->gauge1_initial_step = 10;
-		ROS_DEBUG(
-				"\tGauge 1 initial step value: %d", data->gauge1_initial_step);
+		ROS_DEBUG ("\tGauge 1 initial step value: %d", data->gauge1_initial_step);
 
-		/*
-		 * Can't figure out why I can't use a double in a ROS launch file
-		 * To avoid wasting time, I use a string.
-		 * (string)3_45 = (double)3.45
-		 */
-		if (!n_param.getParam("gauge1_sub_step", gauge1_sub_step)) {
+		if (!np.getParam("gauge1_sub_step", gauge1_sub_step)) {
 			data->gauge1_sub_step = 2;
 		} else {
 			size_t found = gauge1_sub_step.find_first_of("_");
 			gauge1_sub_step[found] = '.';
-			ROS_DEBUG("\tGauge 1 sub step value: %s", gauge1_sub_step.c_str ());
+			ROS_DEBUG ("\tGauge 1 sub step value: %s", gauge1_sub_step.c_str ());
 			try {
-				data->gauge1_sub_step = boost::lexical_cast<double>(
-						gauge1_sub_step);
+				data->gauge1_sub_step = boost::lexical_cast<double>(gauge1_sub_step);
 			} catch (const std::exception &) {
 				data->gauge1_sub_step = 0; // **** Will cause a Gtk warning on the gauge
 			}
 		}
 
-		if (!n_param.getParam("gauge1_drawing_step", data->gauge1_drawing_step))
+		if (!np.getParam("gauge1_drawing_step", data->gauge1_drawing_step))
 			data->gauge1_drawing_step = 10;
-		ROS_DEBUG(
-				"\tGauge 1 drawing step value: %d", data->gauge1_drawing_step);
+		ROS_DEBUG ("\tGauge 1 drawing step value: %d", data->gauge1_drawing_step);
 
 		// **** OPTIONAL
-		n_param.param("gauge1_color_strip_order", gauge1_color_strip,
-				std::string("YOR"));
-		sprintf(data->gauge1_color_strip_order, "%s",
-				gauge1_color_strip.c_str());
-		n_param.getParam("gauge1_green_strip_start",
-				data->gauge1_green_strip_start);
-		n_param.getParam("gauge1_yellow_strip_start",
-				data->gauge1_yellow_strip_start);
-		n_param.getParam("gauge1_red_strip_start",
-				data->gauge1_red_strip_start);
+		np.param("gauge1_color_strip_order", gauge1_color_strip, std::string("YOR"));
+		sprintf(data->gauge1_color_strip_order, "%s", gauge1_color_strip.c_str());
+		np.getParam("gauge1_green_strip_start", data->gauge1_green_strip_start);
+		np.getParam("gauge1_yellow_strip_start", data->gauge1_yellow_strip_start);
+		np.getParam("gauge1_orange_strip_start", data->gauge1_orange_strip_start);
+		np.getParam("gauge1_red_strip_start", data->gauge1_red_strip_start);
 
+		// -----------------------------------------------------------------
+		// **** Altimeter parameters
+		if (!np.getParam("altimeter_unit_is_feet", data->altimeter_unit_is_feet))
+			data->altimeter_unit_is_feet = true;
+		ROS_DEBUG ("\tAltimeter unit is FEET: %d", data->altimeter_unit_is_feet);
+
+		if (!np.getParam("altimeter_step_value", data->altimeter_step_value))
+			data->altimeter_step_value = 100;
+		ROS_DEBUG ("\tAltimeter step value: %d", data->altimeter_step_value);
+
+		// -----------------------------------------------------------------
 		// **** Bar Gauge parameters
 		std::string widget_name;
 		std::string name_bar_gauge1, name_bar_gauge2, name_bar_gauge3;
 		std::string unit_bar_gauge1, unit_bar_gauge2, unit_bar_gauge3;
 
-		n_param.param("bg_widget_name", widget_name,
-				std::string("Randow Bar Gauges"));
+		np.param("bg_widget_name", widget_name, std::string("Randow Bar Gauges"));
+		np.param<int> ("bg_bar_number", data->bar_number, 1);
 		sprintf(data->widget_name, "<big>%s</big>", widget_name.c_str());
-		ROS_DEBUG("\tWidget name : %s", data->name_bar_gauge1_f);
 
-		n_param.param("bg_name_bar_gauge1", name_bar_gauge1,
-				std::string("BG1"));
-		n_param.param("bg_unit_bar_gauge1", unit_bar_gauge1,
-				std::string("(X)"));
+		ROS_DEBUG ("\tWidget name : %s", data->widget_name);
+		ROS_DEBUG ("\tNum containser of bar gauge: %d", data->bar_number);
+
+		// Bar gauge 1
+		np.param<std::string> ("bg_name_bar_gauge1", name_bar_gauge1, std::string("BG1"));
+		np.param<std::string> ("bg_unit_bar_gauge1", unit_bar_gauge1, std::string("[x]"));
 		sprintf(data->name_bar_gauge1_f,
-				"<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
-				name_bar_gauge1.c_str(), unit_bar_gauge1.c_str());
-		ROS_DEBUG("\tBar Gauge 1 name : %s", data->name_bar_gauge1_f);
+		        "<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
+		        name_bar_gauge1.c_str(), unit_bar_gauge1.c_str());
+		np.param<int> ("bg_start_value_bar_1", data->start_value_bar_1, 100);
+		np.param<int> ("bg_end_value_bar_1", data->end_value_bar_1, 0);
+		np.param<int> ("bg_green_strip_start_1", data->green_strip_start_1, data->end_value_bar_1);
+		np.param<int> ("bg_yellow_strip_start_1", data->yellow_strip_start_1,
+		               data->start_value_bar_1);
+		np.param<int> ("bg_red_strip_start_1", data->red_strip_start_1, data->start_value_bar_1);
+		ROS_DEBUG ("\tBar Gauge 1 name : %s", data->name_bar_gauge1_f);
+		ROS_DEBUG ("\tStart value bar 1: %d", data->start_value_bar_1);
+		ROS_DEBUG ("\tEnd value bar 1: %d", data->end_value_bar_1);
+		ROS_DEBUG ("\tGreen strip start value, bar 1: %d", data->green_strip_start_1);
+		ROS_DEBUG ("\tYellow strip start value, bar 1: %d", data->yellow_strip_start_1);
+		ROS_DEBUG ("\tRed strip start value, bar 1: %d", data->red_strip_start_1);
 
-		n_param.param("bg_name_bar_gauge2", name_bar_gauge2,
-				std::string("BG2"));
-		n_param.param("bg_unit_bar_gauge2", unit_bar_gauge2,
-				std::string("(X)"));
+		// Bar gauge 2
+		np.param<std::string> ("bg_name_bar_gauge2", name_bar_gauge2, std::string("BG2"));
+		np.param<std::string> ("bg_unit_bar_gauge2", unit_bar_gauge2, std::string("[x]"));
 		sprintf(data->name_bar_gauge2_f,
-				"<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
-				name_bar_gauge2.c_str(), unit_bar_gauge2.c_str());
-		ROS_DEBUG("\tBar Gauge 2 name : %s", data->name_bar_gauge2_f);
+		        "<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
+		        name_bar_gauge2.c_str(), unit_bar_gauge2.c_str());
+		np.param<int> ("bg_start_value_bar_2", data->start_value_bar_2, 100);
+		np.param<int> ("bg_end_value_bar_2", data->end_value_bar_2, 0);
+		np.param<int> ("bg_green_strip_start_2", data->green_strip_start_2, data->end_value_bar_2);
+		np.param<int> ("bg_yellow_strip_start_2", data->yellow_strip_start_2,
+		               data->start_value_bar_2);
+		np.param<int> ("bg_red_strip_start_2", data->red_strip_start_2, data->start_value_bar_2);
+		ROS_DEBUG ("\tBar Gauge 2 name : %s", data->name_bar_gauge2_f);
+		ROS_DEBUG ("\tStart value bar 2: %d", data->start_value_bar_2);
+		ROS_DEBUG ("\tEnd value bar 2: %d", data->end_value_bar_2);
+		ROS_DEBUG ("\tGreen strip start value, bar 2: %d", data->green_strip_start_2);
+		ROS_DEBUG ("\tYellow strip start value, bar 2: %d", data->yellow_strip_start_2);
+		ROS_DEBUG ("\tRed strip start value, bar 2: %d", data->red_strip_start_2);
 
-		n_param.param("bg_name_bar_gauge3", name_bar_gauge3,
-				std::string("BG3"));
-		n_param.param("bg_unit_bar_gauge3", unit_bar_gauge3,
-				std::string("(X)"));
+		// Bar gauge 3
+		np.param<std::string> ("bg_name_bar_gauge3", name_bar_gauge3, std::string("BG3"));
+		np.param<std::string> ("bg_unit_bar_gauge3", unit_bar_gauge3, std::string("[x]"));
 		sprintf(data->name_bar_gauge3_f,
-				"<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
-				name_bar_gauge3.c_str(), unit_bar_gauge3.c_str());
-		ROS_DEBUG("\tBar Gauge 3 name : %s", data->name_bar_gauge3_f);
-
-		if (!n_param.getParam("bg_bar_number", data->bar_number))
-			data->bar_number = 1;
-		ROS_DEBUG("\tNum containser of bar gauge: %d", data->bar_number);
-
-		if (!n_param.getParam("bg_start_value_bar_1", data->start_value_bar_1))
-			data->start_value_bar_1 = 100;
-		ROS_DEBUG("\tStart value bar 1: %d", data->start_value_bar_1);
-
-		if (!n_param.getParam("bg_end_value_bar_1", data->end_value_bar_1))
-			data->end_value_bar_1 = 0;
-		ROS_DEBUG("\tEnd value bar 1: %d", data->end_value_bar_1);
-
-		n_param.getParam("bg_green_strip_start_1", data->green_strip_start_1);
-		n_param.getParam("bg_yellow_strip_start_1", data->yellow_strip_start_1);
-
-		if (!n_param.getParam("bg_start_value_bar_2", data->start_value_bar_2))
-			data->start_value_bar_2 = 100;
-		ROS_DEBUG("\tStart value bar 2: %d", data->start_value_bar_2);
-
-		if (!n_param.getParam("bg_end_value_bar_2", data->end_value_bar_2))
-			data->end_value_bar_2 = 0;
-		ROS_DEBUG("\tEnd value bar 2: %d", data->end_value_bar_2);
-		if (!n_param.getParam("bg_start_value_bar_3", data->start_value_bar_3))
-			data->start_value_bar_3 = 100;
-		ROS_DEBUG("\tStart value bar 3: %d", data->start_value_bar_3);
-
-		if (!n_param.getParam("bg_end_value_bar_3", data->end_value_bar_3))
-			data->end_value_bar_3 = 0;
-		ROS_DEBUG("\tEnd value bar 3: %d", data->end_value_bar_3);
+		        "<big>%s</big>\n<span foreground=\"orange\"><i>(%s)</i></span>",
+		        name_bar_gauge3.c_str(), unit_bar_gauge3.c_str());
+		np.param<int> ("bg_start_value_bar_3", data->start_value_bar_3, 100);
+		np.param<int> ("bg_end_value_bar_3", data->end_value_bar_3, 0);
+		np.param<int> ("bg_green_strip_start_3", data->green_strip_start_3, data->end_value_bar_3);
+		np.param<int> ("bg_yellow_strip_start_3", data->yellow_strip_start_3,
+		               data->start_value_bar_3);
+		np.param<int> ("bg_red_strip_start_3", data->red_strip_start_3, data->start_value_bar_3);
+		ROS_DEBUG ("\tBar Gauge 3 name : %s", data->name_bar_gauge3_f);
+		ROS_DEBUG ("\tStart value bar 3: %d", data->start_value_bar_3);
+		ROS_DEBUG ("\tEnd value bar 3: %d", data->end_value_bar_3);
+		ROS_DEBUG ("\tGreen strip start value, bar 3: %d", data->green_strip_start_3);
+		ROS_DEBUG ("\tYellow strip start value, bar 3: %d", data->yellow_strip_start_3);
+		ROS_DEBUG ("\tRed strip start value, bar 3: %d", data->red_strip_start_3);
 
 		// -----------------------------------------------------------------
 		// **** allow widget creation
 		data->ros_param_read = true;
 
 		// **** wait to widget creation
-		while (!data->widget_created) {
-			ROS_DEBUG("Waiting widgets creation");
-		}
+		ROS_DEBUG ("Waiting widgets creation");
+		while (!data->widget_created)
+			usleep(25000);
 
 		// -----------------------------------------------------------------
 		// **** topics subscribing
-		ROS_INFO("Subscribing to topics");
-//		imuSub = n.subscribe(imuTopic, 1, imuCallback);
-//		heightSub = n.subscribe(heightTopic, 1, heightCallback);
-//		imuCalcDataSub = n.subscribe(imuCalcDataTopic, 1, imuCalcDataCallback);
-		//~ gpsDataSub = n.subscribe (gpsDataTopic, 1, gpsDataCallback);
-//		llStatusSub = n.subscribe(llStatusTopic, 1, llStatusCallback);
-//		gpsFixSub = n.subscribe("/fix", 1, &gpsFixCallback);
-		telemetrySub = n.subscribe(telemetryTopic, 1, &telemetryCallback);
+		ROS_INFO ("Subscribing to topics");
+		//		imusub = n.subscribe(imutopic, 1, imucallback);
+		//		heightsub = n.subscribe(heighttopic, 1, heightcallback);
+		//		imucalcdatasub = n.subscribe(imucalcdatatopic, 1, imucalcdatacallback);
+		//		//~ gpsdatasub = n.subscribe (gpsdatatopic, 1, gpsdatacallback);
+		//		llstatussub = n.subscribe(llstatustopic, 1, llstatuscallback);
+		//		gpsFixSub = n.subscribe("/fix", 1, &gpsFixCallback);
+		telemetrySub = n.subscribe(telemetryTopic, 1, telemetryCallback);
 
-		ROS_INFO("Spinning");
+		ROS_INFO ("Spinning");
 		ros::spin();
 	}
 
@@ -589,31 +388,24 @@ void load_icon() {
 
 	sprintf(icon_file, "%s/%s", data->icon_directory, "status-fail-64.png");
 	img_status_fail = gtk_image_new_from_file(icon_file);
-	data->status_fail_icon_64 = gtk_image_get_pixbuf(
-			GTK_IMAGE (img_status_fail));
+	data->status_fail_icon_64 = gtk_image_get_pixbuf(GTK_IMAGE (img_status_fail));
 
-	data->status_ok_icon_motor =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->status_fail_icon_motor =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->status_ok_icon_gps =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->status_fail_icon_gps =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->status_ok_icon_flying =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->status_fail_icon_flying =
-			GTK_WIDGET (gtk_image_new_from_pixbuf
-					(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
-	data->record_icon =
-			GTK_WIDGET (gtk_image_new_from_pixbuf (gdk_pixbuf_scale_simple (data->record_icon_64, 30, 30, GDK_INTERP_HYPER)));
-	data->record_g_icon =
-			GTK_WIDGET (gtk_image_new_from_pixbuf (gdk_pixbuf_scale_simple (data->record_g_icon_64, 30, 30, GDK_INTERP_HYPER)));
+	data->status_ok_icon_motor = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->status_fail_icon_motor = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->status_ok_icon_gps = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->status_fail_icon_gps = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->status_ok_icon_flying = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_ok_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->status_fail_icon_flying = GTK_WIDGET (gtk_image_new_from_pixbuf
+			(gdk_pixbuf_scale_simple (data->status_fail_icon_64, 22, 22, GDK_INTERP_HYPER)));
+	data->record_icon
+	        = GTK_WIDGET (gtk_image_new_from_pixbuf (gdk_pixbuf_scale_simple (data->record_icon_64, 30, 30, GDK_INTERP_HYPER)));
+	data->record_g_icon
+	        = GTK_WIDGET (gtk_image_new_from_pixbuf (gdk_pixbuf_scale_simple (data->record_g_icon_64, 30, 30, GDK_INTERP_HYPER)));
 }
 
 /**
@@ -622,14 +414,16 @@ void load_icon() {
  * 
  * Create window and all widgets, then set there parameters to be the <br>
  * ROS params.
- */int main(int argc, char **argv) {
+ */
+int main(int argc, char **argv) {
 	GtkBuilder *builder;
 	GdkColor black = { 0, 0, 0, 0 };
 	GError *error = NULL;
 	char glade_gui_file[FILENAME_MAX];
 	int start_zoom = 15;
 	char *mapcachedir;
-	OsmGpsMapPoint ccny_coord = { 55.37412, 10.398503 }; //40.818551, -73.948674 };
+
+	OsmGpsMapPoint ccny_coord = { 55.374014, 10.398442 };
 
 	struct arg param;
 	param.argc = argc;
@@ -666,7 +460,7 @@ void load_icon() {
 	builder = gtk_builder_new();
 	// **** Load UI from file
 	if (!gtk_builder_add_from_file(builder, glade_gui_file, &error)) {
-		g_warning("%s", error->message);
+		g_warning ("%s", error->message);
 		g_free(error);
 		exit(-1);
 	}
@@ -681,9 +475,9 @@ void load_icon() {
 	pthread_create(&rosThread, NULL, startROS, &param);
 
 	// **** wait ros finish read params
-	while (!data->ros_param_read) {
-		ROS_DEBUG("Waiting ROS params");
-	}
+	ROS_INFO("Waiting for ROS parameters...");
+	while (!data->ros_param_read)
+		usleep(25000);
 
 	// **** Get GtkNotebook objsect
 	data->notebook = GTK_WIDGET (gtk_builder_get_object (builder, "notebook1"));
@@ -692,108 +486,100 @@ void load_icon() {
 	// #####################################################################
 	// **** Tab 1: Telemetry
 
-	// **** create altimeter widgets
-	data->alt = gtk_altimeter_new();
-	g_object_set(GTK_ALTIMETER (data->alt), "grayscale-color",
-			data->grayscale_color, "unit-is-feet", data->altimeter_unit_is_feet,
-			"unit-step-value", data->altimeter_step_value, "radial-color",
-			data->radial_color, NULL);
-
-	// **** create compass widgets
-	data->comp = gtk_compass_new();
-	g_object_set(GTK_COMPASS (data->comp), "grayscale-color",
-			data->grayscale_color, "radial-color", data->radial_color, NULL);
-
-	// **** create gauge widgets
-	data->bg = gtk_bar_gauge_new();
-	g_object_set(GTK_BAR_GAUGE (data->bg), "widget-name", data->widget_name,
-			NULL);
-	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-1",
-			data->name_bar_gauge1_f, NULL);
-	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-2",
-			data->name_bar_gauge2_f, NULL);
-	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-3",
-			data->name_bar_gauge3_f, NULL);
-	g_object_set(GTK_BAR_GAUGE (data->bg), "bar-number", data->bar_number,
-			"grayscale-color", data->grayscale_color, "radial-color",
-			data->radial_color, "start-value-bar-1", data->start_value_bar_1,
-			"end-value-bar-1", data->end_value_bar_1, "green-strip-start-1",
-			data->green_strip_start_1, "yellow-strip-start-1",
-			data->yellow_strip_start_1, "start-value-bar-2",
-			data->start_value_bar_2, "end-value-bar-2", data->end_value_bar_2,
-			"start-value-bar-3", data->start_value_bar_3, "end-value-bar-3",
-			data->end_value_bar_3, NULL);
-
-//	data->comp2 = gtk_compass_new();
-//	g_object_set(GTK_COMPASS (data->comp2), "grayscale-color",
-//			data->grayscale_color, "radial-color", data->radial_color, NULL);
+	// **** create gauge1 widget (Airspeed)
 
 	data->gauge1 = gtk_gauge_new();
 	g_object_set(GTK_GAUGE (data->gauge1), "name", data->gauge1_name_f, NULL);
-	g_object_set(GTK_GAUGE (data->gauge1), "grayscale-color",
-			data->grayscale_color, "radial-color", data->radial_color,
-			"start-value", data->gauge1_start_value, "end-value",
-			data->gauge1_end_value, "initial-step", data->gauge1_initial_step,
-			"sub-step", (gdouble) data->gauge1_sub_step, "drawing-step",
-			data->gauge1_drawing_step, "color-strip-order",
-			data->gauge1_color_strip_order, "green-strip-start",
-			data->gauge1_green_strip_start, "yellow-strip-start",
-			data->gauge1_yellow_strip_start, "red-strip-start",
-			data->gauge1_red_strip_start, NULL);
+	g_object_set(GTK_GAUGE (data->gauge1), "grayscale-color", data->grayscale_color,
+	             "radial-color", data->radial_color, "start-value", data->gauge1_start_value,
+	             "end-value", data->gauge1_end_value, "initial-step", data->gauge1_initial_step,
+	             "sub-step", (gdouble) data->gauge1_sub_step, "drawing-step",
+	             data->gauge1_drawing_step, "color-strip-order", data->gauge1_color_strip_order,
+	             "green-strip-start", data->gauge1_green_strip_start, "yellow-strip-start",
+	             data->gauge1_yellow_strip_start, "orange-strip-start",
+	             data->gauge1_orange_strip_start, "red-strip-start", data->gauge1_red_strip_start,
+	             NULL);
 
 	// **** create artificial horizon widgets
 	data->arh = gtk_artificial_horizon_new();
-	g_object_set(GTK_ARTIFICIAL_HORIZON (data->arh), "grayscale-color",
-			data->grayscale_color, "radial-color", data->radial_color, NULL);
+	g_object_set(GTK_ARTIFICIAL_HORIZON (data->arh), "grayscale-color", data->grayscale_color,
+	             "radial-color", data->radial_color, NULL);
 
-	// **** create variometer widgets
-	data->vario = gtk_variometer_new();
-	g_object_set(GTK_VARIOMETER (data->vario), "grayscale-color",
-			data->grayscale_color, "unit-is-feet",
-			data->variometer_unit_is_feet, "unit-step-value",
-			data->variometer_step_value, "radial-color", data->radial_color,
-			NULL);
+	// **** create altimeter widgets
+	data->alt = gtk_altimeter_new();
+	g_object_set(GTK_ALTIMETER (data->alt), "grayscale-color", data->grayscale_color,
+	             "unit-is-feet", data->altimeter_unit_is_feet, "unit-step-value",
+	             data->altimeter_step_value, "radial-color", data->radial_color, NULL);
 
-	data->widget_table =
-			GTK_WIDGET (gtk_builder_get_object (builder, "table_Widgets"));
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->alt, 0, 1,
-			0, 1);
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->arh, 1, 2,
-			0, 1);
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->comp, 2, 3,
-			0, 1);
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->vario, 0, 1,
-			1, 2);
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->bg, 1, 2, 1,
-			2);
-//	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->comp2, 1, 2,
-//			1, 2);
-	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->gauge1, 2,
-			3, 1, 2);
+	// **** create turn coordinater widget
+	data->tc = gtk_turn_coordinator_new();
+	g_object_set(GTK_TURN_COORDINATOR (data->tc), "grayscale-color", data->grayscale_color,
+	             "radial-color", data->radial_color, NULL);
 
+	// **** create compass widgets
+	data->comp = gtk_compass_new();
+	g_object_set(GTK_COMPASS (data->comp), "grayscale-color", data->grayscale_color,
+	             "radial-color", data->radial_color, NULL);
+
+	// **** create gauge widgets
+	data->bg = gtk_bar_gauge_new();
+	g_object_set(GTK_BAR_GAUGE (data->bg), "widget-name", data->widget_name, NULL);
+	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-1", data->name_bar_gauge1_f, NULL);
+	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-2", data->name_bar_gauge2_f, NULL);
+	g_object_set(GTK_BAR_GAUGE (data->bg), "name-bar-3", data->name_bar_gauge3_f, NULL);
+	g_object_set(GTK_BAR_GAUGE (data->bg), "bar-number", data->bar_number, "grayscale-color",
+	             data->grayscale_color, "radial-color", data->radial_color, "start-value-bar-1",
+	             data->start_value_bar_1, "end-value-bar-1",
+	             data->end_value_bar_1,
+	             "green-strip-start-1",
+	             data->green_strip_start_1,
+	             "yellow-strip-start-1",
+	             data->yellow_strip_start_1,
+	             //										   "red-strip-start-1", data->red_strip_start_1,
+	             "start-value-bar-2", data->start_value_bar_2, "end-value-bar-2",
+	             data->end_value_bar_2, "green-strip-start-2", data->green_strip_start_2,
+	             "yellow-strip-start-2",
+	             data->yellow_strip_start_2,
+	             //										   "red-strip-start-2", data->red_strip_start_2,
+	             "start-value-bar-3", data->start_value_bar_3, "end-value-bar-3",
+	             data->end_value_bar_3, "green-strip-start-3", data->green_strip_start_3,
+	             "yellow-strip-start-3", data->yellow_strip_start_3,
+	             //										   "red-strip-start-3", data->red_strip_start_3,
+	             NULL);
+
+	data->widget_table = GTK_WIDGET (gtk_builder_get_object (builder, "table_Widgets"));
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->gauge1, 0, 1, 0, 1); /* Airspeed indicator */
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->arh, 1, 2, 0, 1); /* Artificial horizon */
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->alt, 2, 3, 0, 1); /* Alti-meter */
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->tc, 0, 1, 1, 2); /* Turn coordinator */
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->comp, 1, 2, 1, 2); /* Compass */
+	gtk_table_attach_defaults(GTK_TABLE (data->widget_table), data->bg, 2, 3, 1, 2); /* bar gauges */
+
+	gtk_widget_modify_bg(data->gauge1, GTK_STATE_NORMAL, &black);
+	gtk_widget_modify_bg(data->arh, GTK_STATE_NORMAL, &black);
 	gtk_widget_modify_bg(data->alt, GTK_STATE_NORMAL, &black);
+	gtk_widget_modify_bg(data->tc, GTK_STATE_NORMAL, &black);
 	gtk_widget_modify_bg(data->comp, GTK_STATE_NORMAL, &black);
 	gtk_widget_modify_bg(data->bg, GTK_STATE_NORMAL, &black);
-	gtk_widget_modify_bg(data->arh, GTK_STATE_NORMAL, &black);
-	gtk_widget_modify_bg(data->gauge1, GTK_STATE_NORMAL, &black);
-	gtk_widget_modify_bg(data->vario, GTK_STATE_NORMAL, &black);
 
-	data->telemetry_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_TelemetryOption"));
-	data->btn_open_telemetry_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_OpenTelemetryOptionPopup"));
-	data->btn_close_telemetry_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_CloseTelemetryOptionPopup"));
+	data->telemetry_option_popup
+	        = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_TelemetryOption"));
+	data->btn_open_telemetry_option_popup
+	        = GTK_WIDGET (gtk_builder_get_object (builder, "button_OpenTelemetryOptionPopup"));
+	data->btn_close_telemetry_option_popup
+	        = GTK_WIDGET (gtk_builder_get_object (builder, "button_CloseTelemetryOptionPopup"));
+
 	gtk_button_set_image(
-			GTK_BUTTON (data->btn_open_telemetry_option_popup),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->leftarrow_icon_64, 24, 50,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->btn_open_telemetry_option_popup),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(data->leftarrow_icon_64,
+	                                                                       24, 50, GDK_INTERP_HYPER)));
 	gtk_button_set_image(
-			GTK_BUTTON (data->btn_close_telemetry_option_popup),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->rightarrow_icon_64, 24, 50,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->btn_close_telemetry_option_popup),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(
+	                                                                       data->rightarrow_icon_64,
+	                                                                       24, 50, GDK_INTERP_HYPER)));
 
 	// #####################################################################
 	// #####################################################################
@@ -805,53 +591,47 @@ void load_icon() {
 	data->map_zoom_max = 18;
 	data->map_current_zoom = start_zoom;
 	data->repo_uri = osm_gps_map_source_get_repo_uri(data->map_provider);
-	data->friendly_name = osm_gps_map_source_get_friendly_name(
-			data->map_provider);
+	data->friendly_name = osm_gps_map_source_get_friendly_name(data->map_provider);
 	data->uav_track = osm_gps_map_track_new();
 	mapcachedir = osm_gps_map_get_default_cache_directory();
 	data->cachedir = g_build_filename(mapcachedir, data->friendly_name, NULL);
 	g_free(mapcachedir);
 
 	// Create the OsmGpsMap object
-	data->map = (OsmGpsMap *) g_object_new(OSM_TYPE_GPS_MAP, "map-source",
-			data->map_provider, "tile-cache", data->cachedir, "proxy-uri",
-			g_getenv("http_proxy"), NULL);
+	data->map = (OsmGpsMap *) g_object_new(OSM_TYPE_GPS_MAP, "map-source", data->map_provider,
+	                                       "tile-cache", data->cachedir, "proxy-uri",
+	                                       g_getenv("http_proxy"), NULL);
 
 	//Set the starting coordinates and zoom level for the map
 	osm_gps_map_set_zoom(data->map, start_zoom);
 	osm_gps_map_set_center(data->map, ccny_coord.rlat, ccny_coord.rlon);
 
 	data->osd = gpsd_viewer_osd_new();
-	g_object_set(GPSD_VIEWER_OSD (data->osd), "show-scale", true,
-			"show-coordinates", true, "show-dpad", true, "show-zoom", true,
-			"show-gps-in-dpad", true, "show-gps-in-zoom", false, "dpad-radius",
-			30, NULL);
-	osm_gps_map_layer_add(OSM_GPS_MAP (data->map),
-			OSM_GPS_MAP_LAYER (data->osd));
+	g_object_set(GPSD_VIEWER_OSD (data->osd), "show-scale", true, "show-coordinates", true,
+	             "show-dpad", true, "show-zoom", true, "show-gps-in-dpad", true,
+	             "show-gps-in-zoom", false, "dpad-radius", 30, NULL);
+	osm_gps_map_layer_add(OSM_GPS_MAP (data->map), OSM_GPS_MAP_LAYER (data->osd));
 
-	data->map_box =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_map_box"));
-	data->map_container =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_map_container"));
-	gtk_box_pack_start(GTK_BOX (data->map_box), GTK_WIDGET (data->map), TRUE,
-			TRUE, 0);
+	data->map_box = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_map_box"));
+	data->map_container = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_map_container"));
+	gtk_box_pack_start(GTK_BOX (data->map_box), GTK_WIDGET (data->map), TRUE, TRUE, 0);
 
-	data->gpsd_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_GpsdOptionPopup"));
-	data->btn_open_gpsd_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_OpenGpsdOptionPopup"));
-	data->btn_close_gpsd_option_popup =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_CloseGpsdOptionPopup"));
+	data->gpsd_option_popup = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_GpsdOptionPopup"));
+	data->btn_open_gpsd_option_popup
+	        = GTK_WIDGET (gtk_builder_get_object (builder, "button_OpenGpsdOptionPopup"));
+	data->btn_close_gpsd_option_popup
+	        = GTK_WIDGET (gtk_builder_get_object (builder, "button_CloseGpsdOptionPopup"));
 	gtk_button_set_image(
-			GTK_BUTTON (data->btn_open_gpsd_option_popup),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->leftarrow_icon_64, 24, 50,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->btn_open_gpsd_option_popup),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(data->leftarrow_icon_64,
+	                                                                       24, 50, GDK_INTERP_HYPER)));
 	gtk_button_set_image(
-			GTK_BUTTON (data->btn_close_gpsd_option_popup),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->rightarrow_icon_64, 24, 50,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->btn_close_gpsd_option_popup),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(
+	                                                                       data->rightarrow_icon_64,
+	                                                                       24, 50, GDK_INTERP_HYPER)));
 
 	// #####################################################################
 	// #####################################################################
@@ -859,59 +639,39 @@ void load_icon() {
 
 	data->recording = 0;
 	data->rosbag_record_cmd = "rosbag record";
-	data->topicsList =
-			GTK_LIST_STORE (gtk_builder_get_object (builder, "liststore_TopicList"));
-	data->cmd_line_entry =
-			GTK_WIDGET (gtk_builder_get_object (builder, "entry_CommandLine"));
-	data->prefix_entry =
-			GTK_WIDGET (gtk_builder_get_object (builder, "entry_Prefix"));
-	data->info_textview =
-			GTK_WIDGET (gtk_builder_get_object (builder, "textview_BagInfo"));
-	data->update_btn =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_UpdateTopicList"));
-	data->box_MotorStatus =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_MotorStatus"));
-	data->box_Flying =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_Flying"));
+	data->topicsList = GTK_LIST_STORE (gtk_builder_get_object (builder, "liststore_TopicList"));
+	data->cmd_line_entry = GTK_WIDGET (gtk_builder_get_object (builder, "entry_CommandLine"));
+	data->prefix_entry = GTK_WIDGET (gtk_builder_get_object (builder, "entry_Prefix"));
+	data->info_textview = GTK_WIDGET (gtk_builder_get_object (builder, "textview_BagInfo"));
+	data->update_btn = GTK_WIDGET (gtk_builder_get_object (builder, "button_UpdateTopicList"));
+	data->box_MotorStatus = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_MotorStatus"));
+	data->box_Flying = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_Flying"));
 	data->box_Gps = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_Gps"));
-	data->flightMode_label =
-			GTK_WIDGET (gtk_builder_get_object (builder, "label_FlightModeValue"));
-	data->upTime_label =
-			GTK_WIDGET (gtk_builder_get_object (builder, "label_UpTimeValue"));
-	data->cpuLoad_label =
-			GTK_WIDGET (gtk_builder_get_object (builder, "label_CpuLoadValue"));
-	data->box_RecordStatus =
-			GTK_WIDGET (gtk_builder_get_object (builder, "hbox_RecordStatus"));
-	data->record_stop_btn =
-			GTK_WIDGET (gtk_builder_get_object (builder, "button_RecordStop"));
+	data->flightMode_label = GTK_WIDGET (gtk_builder_get_object (builder, "label_FlightModeValue"));
+	data->upTime_label = GTK_WIDGET (gtk_builder_get_object (builder, "label_UpTimeValue"));
+	data->cpuLoad_label = GTK_WIDGET (gtk_builder_get_object (builder, "label_CpuLoadValue"));
+	data->box_RecordStatus = GTK_WIDGET (gtk_builder_get_object (builder, "hbox_RecordStatus"));
+	data->record_stop_btn = GTK_WIDGET (gtk_builder_get_object (builder, "button_RecordStop"));
 
-	gtk_box_pack_end(GTK_BOX (data->box_MotorStatus),
-			data->status_ok_icon_motor, TRUE, TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_MotorStatus),
-			data->status_fail_icon_motor, TRUE, TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_Flying), data->status_ok_icon_flying,
-			TRUE, TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_Flying), data->status_fail_icon_flying,
-			TRUE, TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_Gps), data->status_ok_icon_gps, TRUE,
-			TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_Gps), data->status_fail_icon_gps, TRUE,
-			TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_RecordStatus), data->record_icon, TRUE,
-			TRUE, 0);
-	gtk_box_pack_end(GTK_BOX (data->box_RecordStatus), data->record_g_icon,
-			TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_MotorStatus), data->status_ok_icon_motor, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_MotorStatus), data->status_fail_icon_motor, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_Flying), data->status_ok_icon_flying, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_Flying), data->status_fail_icon_flying, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_Gps), data->status_ok_icon_gps, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_Gps), data->status_fail_icon_gps, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_RecordStatus), data->record_icon, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX (data->box_RecordStatus), data->record_g_icon, TRUE, TRUE, 0);
 
 	gtk_button_set_image(
-			GTK_BUTTON (data->update_btn),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->refresh_icon_64, 24, 24,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->update_btn),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(data->refresh_icon_64,
+	                                                                       24, 24, GDK_INTERP_HYPER)));
 	gtk_button_set_image(
-			GTK_BUTTON (data->record_stop_btn),
-			gtk_image_new_from_pixbuf(
-					gdk_pixbuf_scale_simple(data->record_icon_64, 40, 40,
-							GDK_INTERP_HYPER)));
+	                     GTK_BUTTON (data->record_stop_btn),
+	                     gtk_image_new_from_pixbuf(
+	                                               gdk_pixbuf_scale_simple(data->record_icon_64,
+	                                                                       40, 40, GDK_INTERP_HYPER)));
 
 	// Connect signals
 	gtk_builder_connect_signals(builder, data);

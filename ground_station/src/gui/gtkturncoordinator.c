@@ -707,14 +707,14 @@ static void gtk_turn_coordinator_draw_base (GtkWidget * tc, cairo_t * cr)
   cairo_stroke (cr);
 
   // **** "NO PITCH INFORMATION" drawing
-  cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-  cairo_set_font_size (cr, 0.08 * radius);
-  cairo_move_to (cr, x - 0.19 * radius, y + 0.85 * radius);
-  cairo_show_text (cr, "NO PITCH");
-  cairo_stroke (cr);
-  cairo_move_to (cr, x - 0.28 * radius, y + 0.94 * radius);
-  cairo_show_text (cr, "INFORMATION");
-  cairo_stroke (cr);
+//  cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+//  cairo_set_font_size (cr, 0.08 * radius);
+//  cairo_move_to (cr, x - 0.19 * radius, y + 0.85 * radius);
+//  cairo_show_text (cr, "NO PITCH");
+//  cairo_stroke (cr);
+//  cairo_move_to (cr, x - 0.28 * radius, y + 0.94 * radius);
+//  cairo_show_text (cr, "INFORMATION");
+//  cairo_stroke (cr);
 
   // **** balle spot
   cairo_set_line_width (cr, 0.02 * radius);

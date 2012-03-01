@@ -35,158 +35,159 @@
  * @brief class containing all the parameter needed in order to link ROS
  * with Gtk.
  */
-class AppData
-{
+class AppData {
 public:
 
-  // **** main window
-  GtkWidget * window;
-  GtkWidget *notebook;
-  bool ros_param_read;
-  bool widget_created;
-  bool grayscale_color;
-  bool radial_color;
-  bool fullscreen;
-  int current_page;
-  int telemetry_refresh_rate;
-  char icon_directory[FILENAME_MAX];
+	// **** main window
+	GtkWidget * window;
+	GtkWidget *notebook;
+	bool ros_param_read;
+	bool widget_created;
+	bool grayscale_color;
+	bool radial_color;
+	bool fullscreen;
+	int current_page;
+	int telemetry_refresh_rate;
+	char icon_directory[FILENAME_MAX];
 
-  // **** Icon 64*64
-  GdkPixbuf *leftarrow_icon_64;
-  GdkPixbuf *rightarrow_icon_64;
-  GdkPixbuf *record_icon_64;
-  GdkPixbuf *pause_icon_64;
-  GdkPixbuf *stop_icon_64;
-  GdkPixbuf *refresh_icon_64;
-  GdkPixbuf *status_ok_icon_64;
-  GdkPixbuf *status_fail_icon_64;
-  GdkPixbuf *record_g_icon_64;
+	// **** Icon 64*64
+	GdkPixbuf *leftarrow_icon_64;
+	GdkPixbuf *rightarrow_icon_64;
+	GdkPixbuf *record_icon_64;
+	GdkPixbuf *pause_icon_64;
+	GdkPixbuf *stop_icon_64;
+	GdkPixbuf *refresh_icon_64;
+	GdkPixbuf *status_ok_icon_64;
+	GdkPixbuf *status_fail_icon_64;
+	GdkPixbuf *record_g_icon_64;
 
-  // **** Icon resized (Status bar)
-  GtkWidget *record_icon;
-  GtkWidget *record_g_icon;
-  GtkWidget *status_ok_icon_motor;
-  GtkWidget *status_fail_icon_motor;
-  GtkWidget *status_ok_icon_gps;
-  GtkWidget *status_fail_icon_gps;
-  GtkWidget *status_ok_icon_flying;
-  GtkWidget *status_fail_icon_flying;
+	// **** Icon resized (Status bar)
+	GtkWidget *record_icon;
+	GtkWidget *record_g_icon;
+	GtkWidget *status_ok_icon_motor;
+	GtkWidget *status_fail_icon_motor;
+	GtkWidget *status_ok_icon_gps;
+	GtkWidget *status_fail_icon_gps;
+	GtkWidget *status_ok_icon_flying;
+	GtkWidget *status_fail_icon_flying;
 
-  // -------------------------------------------------------------------
-  // -------------------------------------------------------------------
-  // **** Status bar
-  GtkWidget *box_MotorStatus;
-  GtkWidget *box_Flying;
-  GtkWidget *box_Gps;
-  GtkWidget *flightMode_label;
-  GtkWidget *upTime_label;
-  GtkWidget *cpuLoad_label;
-  GtkWidget *box_RecordStatus;
+	// -------------------------------------------------------------------
+	// -------------------------------------------------------------------
+	// **** Status bar
+	GtkWidget *box_MotorStatus;
+	GtkWidget *box_Flying;
+	GtkWidget *box_Gps;
+	GtkWidget *flightMode_label;
+	GtkWidget *upTime_label;
+	GtkWidget *cpuLoad_label;
+	GtkWidget *box_RecordStatus;
 
-  // -------------------------------------------------------------------
-  // -------------------------------------------------------------------
-  // **** Tab 1: Telemetry
-  GtkWidget *widget_table;
+	// -------------------------------------------------------------------
+	// -------------------------------------------------------------------
+	// **** Tab 1: Telemetry
+	GtkWidget *widget_table;
 
-  // **** altimeter
-  GtkWidget *alt;
-  int altimeter_step_value;
-  bool altimeter_unit_is_feet;
+	// **** gauge widget
+	GtkWidget *gauge1;
+	char gauge1_name_f[FILENAME_MAX];
+	char gauge1_color_strip_order[FILENAME_MAX];
+	int gauge1_start_value;
+	int gauge1_end_value;
+	int gauge1_initial_step;
+	double gauge1_sub_step;
+	int gauge1_drawing_step;
+	int gauge1_green_strip_start;
+	int gauge1_yellow_strip_start;
+	int gauge1_orange_strip_start;
+	int gauge1_red_strip_start;
 
-  // **** variometer
-  GtkWidget *vario;
-  int variometer_step_value;
-  bool variometer_unit_is_feet;
+	// **** artificial horizon
+	GtkWidget *arh;
 
-  // **** compass
-  GtkWidget *comp;
-  // **** bar gauge
-  // **** bar gauge widget
-  // **** bar gauge widget
-    GtkWidget * bg;
-    char widget_name[FILENAME_MAX];
-    char name_bar_gauge1_f[FILENAME_MAX];
-    char name_bar_gauge2_f[FILENAME_MAX];
-    char name_bar_gauge3_f[FILENAME_MAX];
-    int bar_number;
-    int start_value_bar_1;
-    int start_value_bar_2;
-    int start_value_bar_3;
-    int end_value_bar_1;
-    int end_value_bar_2;
-    int end_value_bar_3;
-    int green_strip_start_1;
-    int yellow_strip_start_1;
-    int green_strip_start_2;
-    int yellow_strip_start_2;
-    int green_strip_start_3;
-    int yellow_strip_start_3;
+	// **** altimeter
+	GtkWidget *alt;
+	int altimeter_step_value;
+	bool altimeter_unit_is_feet;
 
+	// **** turn coordinator
+	GtkWidget * tc;
 
-  // **** gauge widget
-  GtkWidget *gauge1;
-  char gauge1_name_f[FILENAME_MAX];
-  char gauge1_color_strip_order[FILENAME_MAX];
-  int gauge1_start_value;
-  int gauge1_end_value;
-  int gauge1_initial_step;
-  double gauge1_sub_step;
-  int gauge1_drawing_step;
-  int gauge1_green_strip_start;
-  int gauge1_yellow_strip_start;
-  int gauge1_red_strip_start;
+	// **** compass
+	GtkWidget *comp;
 
-  // **** artificial horizon 
-  GtkWidget *arh;
+	// **** bar gauge widget
+	GtkWidget * bg;
+	char widget_name[FILENAME_MAX];
+	char name_bar_gauge1_f[FILENAME_MAX];
+	char name_bar_gauge2_f[FILENAME_MAX];
+	char name_bar_gauge3_f[FILENAME_MAX];
+	int bar_number;
+	int start_value_bar_1;
+	int end_value_bar_1;
+	int green_strip_start_1;
+	int yellow_strip_start_1;
+	int red_strip_start_1;
 
-  // **** Option Popup
-  bool telemetry_opt_popup_state;
-  GtkWidget *telemetry_option_popup;
-  GtkWidget *btn_open_telemetry_option_popup;
-  GtkWidget *btn_close_telemetry_option_popup;
+	int start_value_bar_2;
+	int end_value_bar_2;
+	int green_strip_start_2;
+	int yellow_strip_start_2;
+	int red_strip_start_2;
 
-  // -------------------------------------------------------------------
-  // -------------------------------------------------------------------
-  // **** Tab 2: GpsdViewer
-  OsmGpsMap *map;
-  OsmGpsMapSource_t map_provider;
-  OsmGpsMapTrack *uav_track;
-  GpsdViewerOsd *osd;
-  GtkWidget *map_box;
-  GtkWidget *map_container;
+	int start_value_bar_3;
+	int end_value_bar_3;
+	int green_strip_start_3;
+	int yellow_strip_start_3;
+	int red_strip_start_3;
 
-  bool draw_path;
-  bool lock_view;
-  int map_zoom_max;
-  int map_current_zoom;
-  const char *repo_uri;
-  const char *friendly_name;
-  char *cachedir;
+	// **** Option Popup
+	bool telemetry_opt_popup_state;
+	GtkWidget *telemetry_option_popup;
+	GtkWidget *btn_open_telemetry_option_popup;
+	GtkWidget *btn_close_telemetry_option_popup;
 
-  // **** Option Popup
-  bool gps_opt_popup_state;
-  GtkWidget *gpsd_option_popup;
-  GtkWidget *btn_open_gpsd_option_popup;
-  GtkWidget *btn_close_gpsd_option_popup;
+	// -------------------------------------------------------------------
+	// -------------------------------------------------------------------
+	// **** Tab 2: GpsdViewer
+	OsmGpsMap *map;
+	OsmGpsMapSource_t map_provider;
+	OsmGpsMapTrack *uav_track;
+	GpsdViewerOsd *osd;
+	GtkWidget *map_box;
+	GtkWidget *map_container;
 
-  // -------------------------------------------------------------------
-  // -------------------------------------------------------------------
-  // **** Tab 3: ROSBag Record
-  pid_t rosbag_pid;
-  GtkListStore *topicsList;
-  GtkWidget *cmd_line_entry;
-  GtkWidget *prefix_entry;
-  GtkWidget *info_textview;
-  bool recording;
+	bool draw_path;
+	bool lock_view;
+	int map_zoom_max;
+	int map_current_zoom;
+	const char *repo_uri;
+	const char *friendly_name;
+	char *cachedir;
 
-  char *rosbag_record_cmd;
-  char *file_prefix;
-  char cmd_line[FILENAME_MAX];
-  char list_topic[FILENAME_MAX];
-  char rosbag_rec_path[FILENAME_MAX];
+	// **** Option Popup
+	bool gps_opt_popup_state;
+	GtkWidget *gpsd_option_popup;
+	GtkWidget *btn_open_gpsd_option_popup;
+	GtkWidget *btn_close_gpsd_option_popup;
 
-  GtkWidget *update_btn;
-  GtkWidget *record_stop_btn;
+	// -------------------------------------------------------------------
+	// -------------------------------------------------------------------
+	// **** Tab 3: ROSBag Record
+	pid_t rosbag_pid;
+	GtkListStore *topicsList;
+	GtkWidget *cmd_line_entry;
+	GtkWidget *prefix_entry;
+	GtkWidget *info_textview;
+	bool recording;
+
+	char *rosbag_record_cmd;
+	char *file_prefix;
+	char cmd_line[FILENAME_MAX];
+	char list_topic[FILENAME_MAX];
+	char rosbag_rec_path[FILENAME_MAX];
+
+	GtkWidget *update_btn;
+	GtkWidget *record_stop_btn;
 };
 
 #endif

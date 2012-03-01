@@ -14,8 +14,6 @@
 #include "slip.hpp"
 #include "ttySetup.hpp"
 
-fmMsgs::teleAir2Ground air2gnd;
-
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "fmTeleNode");
 	ros::NodeHandle nh;
@@ -35,13 +33,13 @@ int main(int argc, char** argv) {
 	uint32_t msg_type;
 	uint32_t msg_size;
 	uint8_t msg_chksum;
-	while (ros::ok()) {
+//	while (ros::ok()) {
 		while (ros::ok()) {
 			uint32_t len = unslip_pkg(fd, buf, 512); // Only returns when package is received...
 
 			if (len < 8) {
 				printf("Package to small (len = %i) - skipping\n", len);
-				break;
+				continue;
 			}
 
 			memcpy(num, buf, 8);							// First 8 bytes contain ascii hex descritions of msg_type and msg_size
@@ -50,7 +48,7 @@ int main(int argc, char** argv) {
 
 			if (msg_size != len - 10) {
 				printf("Package size does not match description: %i (expected %i)\n", len, msg_size + 10);
-				break;
+				continue;
 			}
 
 			memcpy(num, &(buf[8 + msg_size]), 2);
@@ -63,7 +61,7 @@ int main(int argc, char** argv) {
 
 			if (msg_chksum != calc_chksum) {
 				printf("Wrong checksum : %i != %i - 10\n", msg_chksum, calc_chksum);
-				break;
+				continue;
 			}
 
 			fmMsgs::teleAir2Ground msg_in;
@@ -76,13 +74,11 @@ int main(int argc, char** argv) {
 			case 0x1000:
 				ros::serialization::deserialize(streamIn, msg_in);
 				tele_pub.publish(msg_in);
-				std::cout << msg_in << std::endl;
 				break;
 			default:
 				printf("Unknown message type...\n");
 			}
-		}
-		printf("Returning from error...\n");
-		tcflush(fd, TCIFLUSH); /* Clean the tty line*/
+//		}
+//		tcflush(fd, TCIFLUSH); /* Clean the tty line*/
 	}
 }

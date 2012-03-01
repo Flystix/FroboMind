@@ -43,7 +43,7 @@ set(TELEMETRY_SRC src/gui/gtkaltimeter.c
 						src/telemetry_widgets.cpp)
 rosbuild_add_executable(${TELEMETRY}  ${TELEMETRY_SRC})
 
-set(GROUNDSTATION org_groundstation)
+set(GROUNDSTATION groundstation)
 set(GROUNDSTATION_SRC   src/gui/gtkaltimeter.c
 								src/gui/gtkvariometer.c
 								src/gui/gtkcompass.c

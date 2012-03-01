@@ -1,0 +1,15 @@
+<package>
+  <description brief="fmEstimators">
+
+     fmEstimators
+
+  </description>
+  <author>root</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/fmEstimators</url>
+  <depend package="roscpp"/>
+  <depend package="fmMsgs"/>
+</package>
+
+

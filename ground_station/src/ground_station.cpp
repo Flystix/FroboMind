@@ -43,7 +43,7 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	telemetryData_ = (*msg);
 
 	/************* speedometer */
-	double airspeed = telemetryData_.airframe.airspeed;
+	double airspeed = telemetryData_.airframe.airspeed  * 3.6; // [m/s] -> [km/hr]
 	airspeed = airspeed < 0 ? 0 : airspeed;
 	if (IS_GTK_GAUGE (data->gauge1))
 		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
@@ -68,14 +68,42 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
 
 	/************* Turn coordinator */
-	gdouble incline = -RAD2DEG(telemetryData_.airframe.incline) * 4;
+	gdouble incline = -telemetryData_.airframe.incline * 6;
+	static gdouble ballp = RAD2DEG(incline), ballv=0;
+	static const double ballMass = 0.005, ballDampening = 0.05;
+	static const double pMax = 100;
+	gdouble balla;
+	static ros::Time t_;
+	ros::Duration dt = ros::Time::now() - t_;
+	t_ = ros::Time::now();
+
+	if (incline > 0.01)
+		incline =  sqrt(incline);
+	else if(incline < -0.01)
+		incline = -sqrt(-incline);
+
+
+	balla = sin(incline - DEG2RAD(ballp)) * 9.82 / ballMass;
+
+//	balla = (incline - ballp);
+	ballv = ballv + dt.toSec() * balla - ballv * ballDampening;
+	ballp = ballp + ballv * dt.toSec();
+
+	if (ballp > pMax) {
+		ballp = pMax;
+		ballv = 0;
+	}
+	if (ballp < -pMax) {
+		ballp = -pMax;
+		ballv = 0;
+	}
+
 	roll = RAD2DEG(telemetryData_.airframe.pose.x);
 	roll = roll < 0 ? roll + 360 : roll;
 	roll = roll > 360 ? roll - 360 : roll;
-	incline = incline > 70 ? 70 : incline;
-	incline = incline < -70 ? -70 : incline;
+
 	if (IS_GTK_TURN_COORDINATOR(data->tc))
-		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, incline);
+		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, ballp);
 
 	/************* compass */
 	gdouble yaw = RAD2DEG(telemetryData_.airframe.pose.z);

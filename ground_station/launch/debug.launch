@@ -1,6 +1,6 @@
 <!--  -->
 <launch>
-	<node name="org_ground_station" pkg="org_ground_station" type="org_groundstation" respawn="true" output="screen">
+	<node name="ground_station" pkg="ground_station" type="groundstation" respawn="true" output="screen">
 	
 		<!-- General window parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
 		<param name="window_grayscale_color" value="false"/>
@@ -59,9 +59,9 @@
 
 	<group ns="fmEstimators"> 
 		<node pkg="fmEstimators" name="flystixKalman" type="flystixKalman" output="screen" >
-			<param name="gyroVar" value="1" />
+			<param name="gyroVar" value="0.1" />
 			<param name="accVar" value="100" />
-			<param name="magVar" value="1" />
+			<param name="magVar" value="0.01" />
 			<param name="isLevelThreshold" value="85" />
 		</node>
 	</group> 

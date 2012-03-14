@@ -1,5 +1,4 @@
 #include <math.h>
-#include <semaphore.h>
 #include <ros/ros.h>
 #include <fmMsgs/accelerometer.h>
 #include <fmMsgs/gyroscope.h>
@@ -8,8 +7,9 @@
 #include <fmMsgs/altitude.h>
 #include <fmMsgs/airSpeed.h>
 #include <fmMsgs/airframeState.h>
-#include "ekfAttitude.hpp"
+#include "ekfAtt.hpp"
 #include "ekfYaw.hpp"
+#include "ekfPos.hpp"
 
 void gyroCallback(const fmMsgs::gyroscope::ConstPtr&);
 void accCallback(const fmMsgs::accelerometer::ConstPtr&);
@@ -21,25 +21,26 @@ void pubCallback(const ros::TimerEvent&);
 
 ros::Publisher state_pub;
 fmMsgs::airframeState state;
-sem_t attEstLock, yawEstLock;
 
 double wx = 0, wy = 0, wz = 0;
+double temperature = 25;
+double pressure = 1013.25 * 100;
 double levelLimit = 0;
 
-ekfYaw* yawEstimatorPtr;
-ekfAttitude* attitudeEstimatorPtr;
+ekfAtt* attEstPtr;
+ekfYaw* yawEstPtr;
+ekfPos* posEstPtr;
 
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "flyStixKalman");
 	ros::NodeHandle nh;
 	ros::NodeHandle n("~");
-	sem_init(&attEstLock, 0, 1);
-	sem_init(&yawEstLock, 0, 1);
 
-	double accVar, gyroVar, magVar;
+	double accVar, gyroVar, magVar, gpsVar;
 	n.param<double> ("accVar", accVar, 1);
 	n.param<double> ("gyroVar", gyroVar, 1);
 	n.param<double> ("magVar", magVar, 1);
+	n.param<double> ("gpsVar", gpsVar, 1);
 	n.param<double> ("isLevelThreshold", levelLimit, 15);
 	levelLimit = levelLimit * M_PI / 180;
 
@@ -47,38 +48,69 @@ int main(int argc, char** argv) {
 	ROS_INFO("fmEstimator : Initializing pitch/roll ekf...");
 	const unsigned n_pr = 2;	//nb states
 	const unsigned m_pr = 3;	//nb measures
-	static const double _P0_pr[] = {1.0, 0.0, 0.0, 1.0};
-	ekfAttitude::Vector x_pr(n_pr);
-	ekfAttitude::Matrix P0_pr(n_pr, n_pr, _P0_pr);
-	ekfAttitude::Vector z_pr(m_pr);
+	static const double _P0_pr[] = {10.0,  0.0,
+								     0.0, 10.0};
+	ekfAtt::Vector x_pr(n_pr);
+	ekfAtt::Matrix P0_pr(n_pr, n_pr, _P0_pr);
+	ekfAtt::Vector z_pr(m_pr);
 	z_pr(1) = 0;
 	z_pr(2) = 0;
 	z_pr(3) = 0;
-	ekfAttitude::Vector u_pr(m_pr);
+	ekfAtt::Vector u_pr(m_pr);
 	x_pr(1) = 0;
 	x_pr(2) = 0;
 
-	ekfAttitude attitudeEstimator(gyroVar, accVar);
+	ekfAtt attitudeEstimator(gyroVar, accVar);
 	attitudeEstimator.init(x_pr, P0_pr);
-	attitudeEstimatorPtr = &attitudeEstimator;
+	attEstPtr = &attitudeEstimator;
 	ROS_INFO("fmEstimator : Done");
 
 	/* INIT EXTENDED KALMAN FILTER FOR YAW */
 	ROS_INFO("fmEstimator : Initializing yaw ekf...");
 
-	static const double _P0_y[] = {1.0};
+	static const double _P0_y[] = {10.0};
 	ekfYaw::Vector x_y(1);
 	ekfYaw::Matrix P0_y(1, 1, _P0_y);
 	ekfYaw::Vector z_y(3);
 	z_y(1) = 0;
 	z_y(2) = 0;
 	z_y(3) = 0;
-	ekfAttitude::Vector u_y(4);
+	ekfAtt::Vector u_y(4);
 	x_y(1) = 0;
 
 	ekfYaw yawEstimator(gyroVar, magVar);
 	yawEstimator.init(x_y, P0_y);
-	yawEstimatorPtr = &yawEstimator;
+	yawEstPtr = &yawEstimator;
+	ROS_INFO("fmEstimator : Done");
+
+
+	/* INIT EXTENDED KALMAN FILTER FOR YAW */
+	ROS_INFO("fmEstimator : Initializing position ekf...");
+
+	static const double _P0_p[] = {1000.0,    0.0,    0.0,    0.0,    0.0,
+	                                  0.0, 1000.0,    0.0,    0.0,    0.0,
+	                                  0.0,    0.0, 1000.0,    0.0,    0.0,
+	                                  0.0,    0.0,    0.0, 1000.0,    0.0,
+	                                  0.0,    0.0,    0.0,    0.0, 1000.0};
+	ekfPos::Vector x_p(5);
+	ekfPos::Matrix P0_p(5, 5, _P0_p);
+	ekfPos::Vector z_p(3);
+	z_y(1) = 0;
+	z_y(2) = 0;
+	z_y(3) = 0;
+	ekfAtt::Vector u_p(1);
+
+	// FIXME : Wait for GPS fix... Some how?
+	x_p(1) = 6148222.02;
+	x_p(2) =  589484.64;
+	x_p(3) = 0;
+	x_p(4) = 0;
+	x_p(5) = 0;
+
+	ekfPos posEst(gyroVar, gpsVar);
+	posEst.init(x_p, P0_p);
+	posEstPtr = &posEst;
+
 	ROS_INFO("fmEstimator : Done");
 
 
@@ -109,10 +141,12 @@ void gyroCallback(const fmMsgs::gyroscope::ConstPtr& msg) {
 	static ros::Time _stamp = ros::Time::now();
 	double dt = (msg->stamp - _stamp).toSec();
 	_stamp = msg->stamp;
-	ekfAttitude::Vector uAtt(3);
-	ekfAttitude::Vector xAtt(2);
+	ekfAtt::Vector uAtt(3);
+	ekfAtt::Vector xAtt(2);
 	ekfYaw::Vector uYaw(2);
 	ekfYaw::Vector xYaw(1);
+	ekfPos::Vector uPos(1);
+	ekfPos::Vector xPos(5);
 
 	wx = msg->vector.x;
 	wy = msg->vector.y;
@@ -123,42 +157,60 @@ void gyroCallback(const fmMsgs::gyroscope::ConstPtr& msg) {
 	uAtt(2) = wy * dt;
 	uAtt(3) = wz * dt;
 
-	sem_wait(&attEstLock);
-	attitudeEstimatorPtr->timeUpdateStep(uAtt);
-	sem_post(&attEstLock);
-	xAtt = attitudeEstimatorPtr->getX();
+	attEstPtr->timeUpdateStep(uAtt);
+	attEstPtr->updateAngVel(wx,wy,wz);
+	xAtt = attEstPtr->getX();
 
 	/* Do yaw timeUpdate : */
 	uYaw(1) = wy * dt;
 	uYaw(2) = wz * dt;
 
-	sem_wait(&yawEstLock);
-	yawEstimatorPtr->updateAttitude(state.pose.x, state.pose.y);
-	yawEstimatorPtr->timeUpdateStep(uYaw);
-	sem_post(&yawEstLock);
-	xYaw = yawEstimatorPtr->getX();
+	yawEstPtr->updateAttitude(state.pose.x, state.pose.y);
+	yawEstPtr->timeUpdateStep(uYaw);
+	xYaw = yawEstPtr->getX();
+
+	/* Do position timeUpdate */
+	uPos(1) = dt;
+	ekfPos::Vector xB = posEstPtr->getX();
+
+	posEstPtr->updatePose(state.pose.x, state.pose.y, state.pose.z);
+	posEstPtr->timeUpdateStep(uPos);
+
+	ekfPos::Vector xA = posEstPtr->getX();
+
+//	printf("dt = %2.6f\n", uPos(1));
+//	printf("X = [%2.6f , %2.6f , %2.6f , %2.6f , %2.6f]\n",
+//	       xA(1)-xB(1),
+//	       xA(2)-xB(2),
+//	       xA(3)-xB(3),
+//	       xA(4)-xB(4),
+//	       xA(5)-xB(5));
+
+	xPos = posEstPtr->getX();
 
 	/* Save back to airframe state */
-	ROS_DEBUG("GYRO : x = : %2.2f, %2.2f\n", xAtt(1), xAtt(2));
 	state.pose.x = xAtt(1);
 	state.pose.y = xAtt(2);
 	state.pose.z = xYaw(1);
+	state.Pn = xPos(1);
+	state.Pe = xPos(2);
+	state.Wn = xPos(3);
+	state.We = xPos(4);
+	state.airspeed = xPos(5);
 }
 
 void accCallback(const fmMsgs::accelerometer::ConstPtr& msg) {
-	ekfAttitude::Vector z(3);
-	ekfAttitude::Vector x(2);
-	z(1) = msg->vector.x / 9.82;
-	z(2) = msg->vector.y / 9.82;
-	z(3) = msg->vector.z / 9.82;
+	ekfAtt::Vector z(3);
+	ekfAtt::Vector x(2);
+	z(1) = msg->vector.x;
+	z(2) = msg->vector.y;
+	z(3) = msg->vector.z;
 
 	double v = asin(msg->vector.y / sqrt(pow(msg->vector.y,2) + pow(msg->vector.z,2)));
 	state.incline = v * 0.1 + state.incline * 0.9;
 
-	sem_wait(&attEstLock);
-	attitudeEstimatorPtr->measureUpdateStep(z);
-	sem_post(&attEstLock);
-	x = attitudeEstimatorPtr->getX();
+	attEstPtr->measureUpdateStep(z);
+	x = attEstPtr->getX();
 
 	state.pose.x = x(1);
 	state.pose.y = x(2);
@@ -181,45 +233,71 @@ void magCallback(const fmMsgs::magnetometer::ConstPtr& msg) {
 	z(1) = msg->vector.x;
 	z(2) = msg->vector.y;
 	z(3) = msg->vector.z;
-	sem_wait(&yawEstLock);
-	yawEstimatorPtr->updateAttitude(state.pose.x, state.pose.y);
-	yawEstimatorPtr->measureUpdateStep(z);
-	sem_post(&yawEstLock);
-	x = yawEstimatorPtr->getX();
+	yawEstPtr->updateAttitude(state.pose.x, state.pose.y);
+	yawEstPtr->measureUpdateStep(z);
+	x = yawEstPtr->getX();
 	/* Update state */
 	state.pose.z = x(1);
 }
 
 void gpsCallback(const fmMsgs::gps_state::ConstPtr& msg) {
-	/* Run measure-update on stage 3 */
-    /* msg->header;
-     * msg->time_recv;
-     * msg->time;
-     * msg->lat;
-     * msg->lon;
-     * msg->utm_zone_num;
-     * msg->utm_zone_let;
-     * msg->utm_n;
-     * msg->utm_e;
-     * msg->alt;
-     * msg->fix;
-     * msg->sat;
-     * msg->hdop;
-     * msg->geoid_height; */
-    /* Update state */
+	ekfPos::Vector z(3);
+	ekfPos::Vector x(5);
+	static double _GPSn = 0;
+	static double _GPSe = 0;
+	static double _t = 0;
+
+	bool doBreak = (_GPSn == 0 || _GPSe == 0 || _t == 0);
+	if (msg->fix < 1)
+		return;
+
+	double GPSn = msg->utm_n;
+	double GPSe = msg->utm_e;
+	double t = msg->header.stamp.toSec();
+
+	if (doBreak) {
+		_GPSn = GPSn;
+		_GPSe = GPSe;
+		_t = t;
+		ROS_DEBUG("Skipping init GPS sample");
+		return;
+	}
+
+	double Vg = sqrt(pow(GPSn - _GPSn, 2) + pow(GPSe - _GPSe, 2)) / (t - _t);
+
+	_GPSn = GPSn;
+	_GPSe = GPSe;
+	_t = t;
+
+	z(1) = GPSn;
+	z(2) = GPSe;
+	z(3) = Vg;
+
+	posEstPtr->updatePose(state.pose.x, state.pose.y, state.pose.z);
+	posEstPtr->measureUpdateStep(z);
+	x = posEstPtr->getX();
+	/* Update state */
+	state.Pn = x(1);
+	state.Pe = x(2);
+	state.Wn = x(3);
+	state.We = x(4);
+	state.airspeed = x(5);
+
+	ekfPos::Vector zP = posEstPtr->simulate();
+	printf("State    [%2.2f , %2.2f , %2.2f , %2.2f , %2.2f]\n"
+		   "Expected [%2.2f , %2.2f , %2.2f]\n"
+		   "Got      [%2.2f , %2.2f , %2.2f]\n\n",
+		    x(1),x(2),x(3),x(4),x(5),zP(1),zP(2),zP(3),z(1),z(2),z(3));
+
     state.lat = msg->lat;
     state.lon = msg->lon;
 }
 
 void altCallback(const fmMsgs::altitude::ConstPtr& msg) {
-	/* Update altitude and dist. to ground */
-    /* msg->range;
-     * msg->altitude;
-     * msg->pressure;
-     * msg->temperature;
-     * msg->stamp; */
-    /* Update state */
+	temperature = msg->temperature;
+	pressure = msg->pressure;
 	state.alt = msg->altitude;
+	state.dist = msg->range;
 }
 
 void pitotCallback(const fmMsgs::airSpeed::ConstPtr& msg) {
@@ -227,6 +305,37 @@ void pitotCallback(const fmMsgs::airSpeed::ConstPtr& msg) {
 	/* 	msg->airspeed;
 	 * msg->stamp; */
 	/* Update state */
-	state.airspeed = msg->airspeed;
+//	state.airspeed = msg->airspeed;
+	attEstPtr->updateAirspeed(1);
+	double Vp, we, wn, ph, th, ps, alfa, beta, ga;
+	wn = state.Wn;
+	we = state.We;
+	ph = state.pose.x;
+	th = state.pose.y;
+	ps = state.pose.z;
+
+	/*
+	 * msg->airspeed = 3.3V / 1023 * Vamp
+	 * Vamp = Vmpxv * 0.8 - 2.5V
+	 * Vmpxv = Pdiff * 1mV/Pa + 2.5V
+	 * Pdiff = 1/2 * rho * Va^2
+	 *     rho = (P[hPa] * 10^2) / 287.058 * 1 / (T + 273.15)
+	 *         P = Pressure [hPa]
+	 *         T = Temperature [C]
+	 * => Va = sqrt(2 * 3.3V/1023LSB * 5/4 * msg->airspeed / rho)
+	 *       = sqrt(8.064516129 * msg->airspeed / rho)
+	 */
+
+	double rho = (pressure / 287.085) * (1 / (temperature + 273.15));
+	Vp = sqrt(8.064516129 * msg->airspeed / rho);
+
+	alfa = 0;	// Angle of attack
+	beta = 0;	// Slip angle
+	ga = th - alfa*cos(ph) - beta*sin(ph); // Inertial climb angle
+	state.airspeed = sqrt(pow((Vp*cos(ps)*cos(ga) - wn),2) +
+	                      pow((Vp*sin(ps)*cos(ga) - we),2) +
+	                      pow((Vp*sin(ga)),2));
 }
+
+
 

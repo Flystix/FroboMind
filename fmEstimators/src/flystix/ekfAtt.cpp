@@ -1,5 +1,5 @@
 
-#include "ekfAttitude.hpp"
+#include "ekfAtt.hpp"
 #include <stdio.h>
 #include <cmath>
 #include <math.h>
@@ -7,18 +7,18 @@
 
 using namespace std;
 
-ekfAttitude::ekfAttitude(double processVariance, double measurementVariance)  {
+ekfAtt::ekfAtt(double processVariance, double measurementVariance)  {
 //	setSizeX(2);	//!< Size of the state vector.
 //	setSizeU(3);	//!< Size of the input vector.
 //	setSizeW(2);	//!< Size of the process noise vector. Matrix?!
 //	setSizeZ(3);	//!< Size of the measurement vector.
 //	setSizeV(3); 	//!< Size of the measurement noise vector. Matrix?!
-	setDim(2, 4, 3, 3, 3);
+	setDim(2, 3, 3, 3, 3);
 	measVar = measurementVariance;
 	processVar = processVariance;
 }
 
-void ekfAttitude::makeDZ() {
+void ekfAtt::makeDZ() {
 	for (int i = 1 ; i <= 2 ; i++) {
 		/* PI-wrap... */
 		while (x(i) >  M_PI)
@@ -33,14 +33,14 @@ void ekfAttitude::makeDZ() {
 	}
 }
 
-void ekfAttitude::makeBaseA() {
+void ekfAtt::makeBaseA() {
 //	A(1,1) = wy * tt * cp - wz * tt * sp;
 //	A(1,2) = (wy * sp - wz * cp) / (ct * ct);
 //	A(2,1) = -wy * sp - wz * cp;
 	A(2,2) = 0;
 }
 
-void ekfAttitude::makeA() {
+void ekfAtt::makeA() {
 	double cp = cos(x(1));
 	double sp = sin(x(1));
 	double ct = cos(x(2));
@@ -52,7 +52,7 @@ void ekfAttitude::makeA() {
 //	A(2,2) = 0;
 }
 
-void ekfAttitude::makeBaseW() {
+void ekfAtt::makeBaseW() {
 	W(1,1) = 1;
 //	W(1,2) = tt * sp;
 //	W(1,3) = tt * cp;
@@ -61,7 +61,7 @@ void ekfAttitude::makeBaseW() {
 //	W(2,3) = -sp;
 }
 
-void ekfAttitude::makeW() {
+void ekfAtt::makeW() {
 	double cp = cos(x(1));
 	double sp = sin(x(1));
 	double tt = tan(x(2));
@@ -73,7 +73,7 @@ void ekfAttitude::makeW() {
 	W(2,3) = -sp;
 }
 
-void ekfAttitude::makeBaseQ() {
+void ekfAtt::makeBaseQ() {
 	Q(1,1) =  1.00000 * processVar;
 	Q(1,2) = -0.17227 * processVar;
 	Q(1,3) =  0.11208 * processVar;
@@ -85,7 +85,7 @@ void ekfAttitude::makeBaseQ() {
 	Q(3,3) =  1.00000 * processVar;
 }
 
-void ekfAttitude::makeBaseH() {
+void ekfAtt::makeBaseH() {
 	H(1,1) =  0;
 //	H(1,2) =  ct;
 //	H(2,1) = -ct * cp;
@@ -94,7 +94,7 @@ void ekfAttitude::makeBaseH() {
 //	H(3,2) =  cp * st;
 }
 
-void ekfAttitude::makeH() {
+void ekfAtt::makeH() {
 	double cp = cos(x(1));
 	double sp = sin(x(1));
 	double ct = cos(x(2));
@@ -107,7 +107,7 @@ void ekfAttitude::makeH() {
 	H(3,2) =  cp * st;
 }
 
-void ekfAttitude::makeBaseV() {
+void ekfAtt::makeBaseV() {
 	V(1,1) = 1.0;
 	V(1,2) = 0.0;
 	V(1,3) = 0.0;
@@ -119,7 +119,7 @@ void ekfAttitude::makeBaseV() {
 	V(3,3) = 1.0;
 }
 
-void ekfAttitude::makeBaseR() {
+void ekfAtt::makeBaseR() {
 	R(1,1) =  1.000000 * measVar;
 	R(2,1) =  0.480250 * measVar;
 	R(3,1) = -0.041471 * measVar;
@@ -131,28 +131,41 @@ void ekfAttitude::makeBaseR() {
 	R(3,3) =  1.000000 * measVar;
 }
 
-void ekfAttitude::makeProcess() { // Implements f(x,u,0)
+void ekfAtt::makeProcess() { // Implements f(x,u,0)
 	Vector x_(x.size());
-	double wx = u(1), wy = u(2), wz = u(3);
+	double p = u(1), q = u(2), r = u(3); // [p;q;r] = [wx;wy;wz] * dt
 	double cp = cos(x(1));
 	double sp = sin(x(1));
 	double tt = tan(x(2));
-	x_(1) = x(1) + wx + tt * sp * wy + tt * cp * wz;
-	x_(2) = x(2) + cp * wy - sp * wz;
+	x_(1) = x(1) + p + tt * sp * q + tt * cp * r;
+	x_(2) = x(2) + cp * q - sp * r;
 	x.swap(x_);
 }
 
-void ekfAttitude::makeMeasure() { // Implements h(x,0)
+void ekfAtt::makeMeasure() { // Implements h(x,0)
 	double cp = cos(x(1));
 	double sp = sin(x(1));
 	double ct = cos(x(2));
 	double st = sin(x(2));
 	Vector z_(z.size());
-	z_(1) =  st;
-	z_(2) = -sp * ct;
-	z_(3) = -cp * ct;
-	z_(1) =  st * cp;
-	z_(2) = -sp;
-	z_(3) = -ct * cp;
+	/* Gravitational vector [m/s²]*/
+	z_(1) =     st * g;
+	z_(2) = -sp*ct * g;
+	z_(3) = -cp*ct * g;
+	/* Centripetal forces [m/s] * [rad/s] = [m/s²]*/
+	z_(1) +=  Va*(wy*st);
+	z_(2) +=  Va*(wz*ct - wx*st);
+	z_(3) += -Va*(wy*ct);
 	z.swap(z_);
 }
+
+void ekfAtt::updateAirspeed(double newAirspeed) {
+	Va = newAirspeed;
+}
+
+void ekfAtt::updateAngVel(double newWx, double newWy, double newWz) {
+	wx = newWx;
+	wy = newWy;
+	wz = newWz;
+}
+

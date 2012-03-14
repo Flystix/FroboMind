@@ -3,9 +3,11 @@
 
 #include "kalman/ekfilter.hpp"
 
-class ekfAttitude : public Kalman::EKFilter<double,1,false,false,false> {
+class ekfAtt : public Kalman::EKFilter<double,1,false,false,false> {
 public:
-	ekfAttitude(double, double);
+	ekfAtt(double, double);
+	void updateAirspeed(double newAirspeed);
+	void updateAngVel(double newWx, double newWy, double newWz);
 protected:
 	void makeBaseA();
 	void makeBaseH();
@@ -22,6 +24,9 @@ protected:
 	void makeDZ();
 	double measVar;
 	double processVar;
+private:
+	double Va, wx, wy, wz;
+	static const double g = 9.82;
 };
 
 //typedef ekfAttitude::Vector Vector;

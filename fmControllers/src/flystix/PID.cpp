@@ -96,3 +96,7 @@ void PID::reset(void) {
 	sum = 0;
 	stamp = ros::Time::now();
 }
+void PID::resetI(double I_) {
+	if (I != 0)
+		sum = I_ / I;
+}

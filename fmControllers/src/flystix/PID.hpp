@@ -17,6 +17,7 @@ public:
 	double getSetPoint(void);
 	void setFeedback(double z);
 	double output(void);
+	void resetI(double desiredOutput);
 	void setGains(double newP, double newI, double newD);
 	void setOutputMax(double newMax);
 	double update(void);

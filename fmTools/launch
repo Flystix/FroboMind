@@ -1,4 +1,17 @@
 #!/bin/bash
-/usrsrc/FroboMind/fmTools/gpsconfig /dev/ttyS0 9600 /usrsrc/FroboMind/fmTools/flystixconf.txt
+#Initial GPS configuration to work for flight, only output GPGGA and do it at 5Hz
+/usrsrc/FroboMind/fmTools/ubloxconf /dev/ttyS0 9600 /usrsrc/FroboMind/fmTools/flystixconf.txt
 
-roslaunch fmCore gpstest.launch
+# screen -dmS => Start as daemon: Screen session in detached mode.
+screen -d -m -S roslaunch /usrsrc/FroboMind/fmTools/main.sh
+
+sleep 5
+# screen -dmS => Start as daemon: Screen session in detached mode.
+screen -d -m -S rosbag /usrsrc/FroboMind/fmTools/rosbag.sh
+
+
+#Screen help:
+#To get a list of the available screens, type: screen -ls
+#To attach to a screen (for instance myroslaunch): screen -r myroslaunch
+#Then to keep it running, but detach from the session, you can press: {ctrl+a} then {d}
+

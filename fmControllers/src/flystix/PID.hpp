@@ -1,37 +1,94 @@
 /*
- * Yap yap
+ * pid.hpp
+ *
+ *  Created on: Mar 23, 2012
+ *      Author: hjnyg07
  */
 
-#ifndef __PID_HPP__
-#define __PID_HPP__
+#ifndef PID_HPP_
+#define PID_HPP_
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <ros/ros.h>
 
-class PID {
-public:
-	PID();
-	PID(ros::NodeHandle*, ros::Rate updateRate);
-	PID(double initP, double initI, double initD, double outputMax, ros::NodeHandle*, ros::Rate updateRate);
-	PID(double initP, double initI, double initD, double outputMax);
-	void setSetPoint(double u);
-	double getSetPoint(void);
-	void setFeedback(double z);
-	double output(void);
-	void resetI(double desiredOutput);
-	void setGains(double newP, double newI, double newD);
-	void setOutputMax(double newMax);
-	double update(void);
-	double update(ros::Duration dt);
-private:
-	void createTimerCallback(ros::NodeHandle* nh, ros::Rate r);
-	void timerCallback(const ros::TimerEvent& e);
-	void reset(void);
-	double P, I, D;
-	double setPoint, feedback;
-	double err, sum, outMax;
-	double out;
-	ros::Timer timer;
-	ros::Time stamp;
-};
 
-#endif
+class PID
+{
+
+
+  public:
+
+  //Constants used in some of the functions below
+  #define AUTOMATIC	1
+  #define MANUAL	0
+  #define DIRECT  0
+  #define REVERSE  1
+	PID(double, double, double, int);
+
+    PID(double, double, double,        // * constructor.  links the PID to the Input, Output, and
+        double, double, double, int);     //   Setpoint.  Initial tuning parameters are also set here
+    PID(double, double, double);
+    void SetMode(int Mode);               // * sets PID to either Manual (0) or Auto (non-0)
+    void ComputeCallback(const ros::TimerEvent& event);// * performs the PID calculation.  it should be
+    //   called every time loop() cycles. ON/OFF and
+    //   calculation frequency can be set using SetMode
+    //   SetSampleTime respectively
+    void SetOutputLimits(double, double); //clamps the output to a specific range. 0-255 by default, but
+										  //it's likely the user will want to change this depending on
+										  //the application
+  //available but not commonly used functions ********************************************************
+    void SetTunings(double, double,       // * While most users will set the tunings once in the
+                    double);         	  //   constructor, this function gives the user the option
+                                          //   of changing tunings during runtime for Adaptive control
+	void SetControllerDirection(int);	  // * Sets the Direction, or "Action" of the controller. DIRECT
+										  //   means the output will increase when error is positive. REVERSE
+										  //   means the opposite.  it's very unlikely that this will be needed
+										  //   once it is set in the constructor.
+    void SetSampleRate(int);              // * sets the frequency, in Hz, with which
+                                          //   the PID calculation is performed.  default is 100
+
+    void createComputeTimer(ros::NodeHandle*, int rate);
+
+  //Display functions ****************************************************************
+	double GetKp();						  // These functions query the pid for interal values.
+	double GetKi();						  //  they were created mainly for the pid front-end,
+	double GetKd();						  // where it's important to know what is actually
+	double getFeedback();
+	double getOutput();
+	double getSetpoint();
+	void setSetpoint(double);
+	void setFeedback(double);
+	int GetMode();						  //  inside the PID.
+	int GetDirection();					  //
+	void Initialize(double startpoint);
+
+  private:
+	ros::Timer computeCallbackTimer;
+
+	void Initialize();
+
+
+	double dispKp;				// * we'll hold on to the tuning parameters in user-entered
+	double dispKi;				//   format for display purposes
+	double dispKd;				//
+
+	double kp;                  // * (P)roportional Tuning Parameter
+    double ki;                  // * (I)ntegral Tuning Parameter
+    double kd;                  // * (D)erivative Tuning Parameter
+
+	int controllerDirection;
+
+    double myFeedback;              // * Pointers to the Input, Output, and Setpoint variables
+    double myOutput;             //   This creates a hard link between the variables and the
+    double mySetpoint;           //   PID, freeing the user from having to constantly tell us
+                                  //   what these values are.  with pointers we'll just know.
+
+	double ITerm, lastFeedback;
+
+	double SampleTime;
+	double outMin, outMax;
+	bool inAuto;
+};
+//#endif
+#endif /* PID_HPP_ */

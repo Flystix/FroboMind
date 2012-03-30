@@ -33,9 +33,88 @@
 
 #include <ground_station/ground_station.h>
 #include <fmMsgs/teleAir2Ground.h>
+#include <fmMsgs/airframeState.h>
 #include <unistd.h>
 
 AppData *data;
+
+void stateCallback(const fmMsgs::airframeState::ConstPtr& msg) {
+	// **** get GTK thread lock
+	gdk_threads_enter();
+	fmMsgs::airframeState state = *msg;
+
+	/************* speedometer */
+	double airspeed = state.airspeed  * 3.6; // [m/s] -> [km/hr]
+	airspeed = airspeed < 0 ? 0 : airspeed;
+	if (IS_GTK_GAUGE (data->gauge1))
+		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
+
+	/************* altimeter */
+	double altitude = state.alt;
+	altitude = altitude < 0 ? 0 : altitude;
+
+	if (IS_GTK_ALTIMETER (data->alt))
+		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt), altitude);
+
+	/************* artificial horizon */
+	gdouble roll = -RAD2DEG(state.pose.x);
+	gdouble pitch = RAD2DEG(state.pose.y);
+
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+	pitch = pitch > 70 ? 70 : pitch;
+	pitch = pitch < -70 ? -70 : pitch;
+
+	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
+		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
+
+	/************* Turn coordinator */
+	gdouble incline = -state.incline * 6;
+	static gdouble ballp = RAD2DEG(incline), ballv=0;
+	static const double ballMass = 0.005, ballDampening = 0.05;
+	static const double pMax = 100;
+	gdouble balla;
+	static ros::Time t_;
+	ros::Duration dt = ros::Time::now() - t_;
+	t_ = ros::Time::now();
+
+	if (incline > 0.01)
+		incline =  sqrt(incline);
+	else if(incline < -0.01)
+		incline = -sqrt(-incline);
+
+
+	balla = sin(incline - DEG2RAD(ballp)) * 9.82 / ballMass;
+
+//	balla = (incline - ballp);
+	ballv = ballv + dt.toSec() * balla - ballv * ballDampening;
+	ballp = ballp + ballv * dt.toSec();
+
+	if (ballp > pMax) {
+		ballp = pMax;
+		ballv = 0;
+	}
+	if (ballp < -pMax) {
+		ballp = -pMax;
+		ballv = 0;
+	}
+
+	roll = RAD2DEG(state.pose.x);
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+
+	if (IS_GTK_TURN_COORDINATOR(data->tc))
+		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, ballp);
+
+	/************* compass */
+	gdouble yaw = RAD2DEG(state.pose.z);
+	yaw = yaw > 360 ? yaw - 360 : yaw;
+	yaw = yaw < 0 ? yaw + 360 : yaw;
+	if (IS_GTK_COMPASS (data->comp))
+		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
+
+	gdk_threads_leave();
+}
 
 void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	// **** get GTK thread lock
@@ -355,6 +434,7 @@ void *startROS(void *user) {
 		//		llstatussub = n.subscribe(llstatustopic, 1, llstatuscallback);
 		//		gpsFixSub = n.subscribe("/fix", 1, &gpsFixCallback);
 		telemetrySub = n.subscribe(telemetryTopic, 1, telemetryCallback);
+		stateSub = n.subscribe("/airframeState", 1, stateCallback);
 
 		ROS_INFO ("Spinning");
 		ros::spin();

@@ -1,102 +1,264 @@
-/*
- * PID.cpp
+/**********************************************************************************************
+ * Arduino PID Library - Version 1.0.1
+ * by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
  *
- *  Created on: Mar 14, 2012
- *      Author: peter
- */
+ * This Library is licensed under a GPLv3 License
+ **********************************************************************************************/
 
+#include <stdlib.h>
+#include <stdio.h>
 #include "PID.hpp"
+#include <ros/ros.h>
 
-PID::PID() {
-	reset();
-}
-PID::PID(ros::NodeHandle* nh, ros::Rate updateRate) {
-	reset();
-	createTimerCallback(nh, updateRate);
-}
-PID::PID(double initP, double initI, double initD, double outputMax, ros::NodeHandle* nh,
-         ros::Rate updateRate) {
-	reset();
-	P = initP;
-	I = initI;
-	D = initD;
-	outMax = outputMax;
-	createTimerCallback(nh, updateRate);
-}
-PID::PID(double initP, double initI, double initD, double outputMax) {
-	reset();
-	P = initP;
-	I = initI;
-	D = initD;
-	outMax = outputMax;
-}
+/*Constructor (...)*********************************************************
+ *    The parameters specified here are those for for which we can't set up
+ *    reliable defaults, so we need to have the user set them.
+ ***************************************************************************/
+PID::PID(double Input, double Output, double Setpoint) {
+	PID::SetOutputLimits(0, 255); //default output limit corresponds to
+								  //the arduino pwm limits
 
-double PID::update(void) {
-	ros::Time t = ros::Time::now();
-	update(t - stamp);
-	stamp = t;
-	return out;
-}
+	SampleTime = 1; //Dummy
+	PID::SetControllerDirection(DIRECT); //Default
+	PID::SetTunings(1, 0, 0); //Default
 
-double PID::update(ros::Duration dt) {
-	static double _e;
-	double e = setPoint - feedback;
-	sum += e * dt.toSec();
+//    lastTime = ros::Time::now() - SampleRate;
+	inAuto = false;
+	myOutput = Output;
+	myFeedback = Input;
+	mySetpoint = Setpoint;
 
-	if (sum * I > outMax)
-		sum = outMax / I;
-	if (sum * I < -outMax)
-		sum = -outMax / I;
+}
+PID::PID(double Input, double Output, double Setpoint, double Kp, double Ki,
+		double Kd, int ControllerDirection) {
+	PID::SetOutputLimits(0, 255); //default output limit corresponds to
+								  //the arduino pwm limits
 
-	out = P * e + I * sum + D * (e - _e) / dt.toSec();
+	SampleTime = 1; //Dummy
 
-	_e = e;
+	PID::SetControllerDirection(ControllerDirection);
+	PID::SetTunings(Kp, Ki, Kd);
+//    lastTime = ros::Time::now() - SampleRate;
+	inAuto = false;
+	myOutput = Output;
+	myFeedback = Input;
+	mySetpoint = Setpoint;
 
-	return out;
 }
+PID::PID(double Kp, double Ki, double Kd, int ControllerDirection) {
+	PID::SetOutputLimits(0, 255); //default output limit corresponds to
+								  //the arduino pwm limits
 
-void PID::setSetPoint(double u) {
-	setPoint = u;
-}
-double PID::getSetPoint(void) {
-	return setPoint;
-}
-void PID::setFeedback(double z) {
-	feedback = z;
-}
-double PID::output(void) {
-	return out;
-}
-void PID::setGains(double newP, double newI, double newD) {
-	P = newP;
-	I = newI;
-	D = newD;
-}
-void PID::setOutputMax(double newMax) {
-	outMax = newMax;
+	SampleTime = 1; //Dummy
+
+	PID::SetControllerDirection(ControllerDirection);
+	PID::SetTunings(Kp, Ki, Kd);
+//    lastTime = ros::Time::now() - SampleRate;
+	inAuto = false;
+	myOutput = 0;
+	myFeedback = 0;
+	mySetpoint = 0;
+
 }
 
-void PID::timerCallback(const ros::TimerEvent& e) {
-	update(e.current_real - stamp);
-	stamp = e.current_real;
+/* Compute() **********************************************************************
+ *     This, as they say, is where the magic happens.  this function should be called
+ *   every time "void loop()" executes.  the function will decide for itself whether a new
+ *   pid Output needs to be computed
+ **********************************************************************************/
+void PID::ComputeCallback(const ros::TimerEvent& event) {
+
+//	ROS_INFO("CumputeCallback called");
+	if (!inAuto){ //If in manual, reroute input to output
+		double output = mySetpoint;
+		if (output > outMax) //Saturate output
+				output = outMax;
+			else if (output < outMin)
+				output = outMin;
+			myOutput = output;
+		return;
+	}
+
+
+	/*Compute all the working error variables*/
+	double feedback = myFeedback;
+	double error = mySetpoint - feedback;
+	ITerm += (ki * error);
+	if (ITerm > outMax) //Windup saturation
+		ITerm = outMax;
+	else if (ITerm < outMin) //Winddown saturation
+		ITerm = outMin;
+	double dInput = (feedback - lastFeedback);
+
+	/*Compute PID Output*/
+	double output = kp * error + ITerm - kd * dInput;
+
+	if (output > outMax) //Saturate output
+		output = outMax;
+	else if (output < outMin)
+		output = outMin;
+	myOutput = output;
+
+	/*Remember some variables for next time*/
+	lastFeedback = feedback;
+
 }
 
-void PID::createTimerCallback(ros::NodeHandle* nh, ros::Rate rate) {
-	timer = nh->createTimer(rate.expectedCycleTime(), &PID::timerCallback, this);
+/* SetTunings(...)*************************************************************
+ * This function allows the controller's dynamic performance to be adjusted.
+ * it's called automatically from the constructor, but tunings can also
+ * be adjusted on the fly during normal operation
+ ******************************************************************************/
+void PID::SetTunings(double Kp, double Ki, double Kd) {
+	if (Kp < 0 || Ki < 0 || Kd < 0)
+		return;
+
+	dispKp = Kp;
+	dispKi = Ki;
+	dispKd = Kd;
+
+	//double SampleTimeInSec = ((double)SampleRate)/1000; //TODO
+	kp = Kp;
+	ki = Ki * SampleTime;
+	kd = Kd / SampleTime;
+
+	if (controllerDirection == REVERSE) {
+		kp = (0 - kp);
+		ki = (0 - ki);
+		kd = (0 - kd);
+	}
 }
 
-void PID::reset(void) {
-	P = 0;
-	I = 0;
-	D = 0;
-	outMax = 0; // Zero -> No limit...!
-	setPoint = 0;
-	feedback = 0;
-	err = 0;
-	sum = 0;
-	stamp = ros::Time::now();
+/* SetSampleTime(...) *********************************************************
+ * sets the period, in Milliseconds, at which the calculation is performed
+ ******************************************************************************/
+void PID::SetSampleRate(int NewSampleRate) {
+
+	if (NewSampleRate > 0) {
+		double ratio = (double) NewSampleRate / (double) (1 / SampleTime);
+		ki *= ratio;
+		kd /= ratio;
+
+		SampleTime = 1 / NewSampleRate;
+		computeCallbackTimer.setPeriod(ros::Duration(SampleTime));
+	}
 }
-void PID::resetI(double I_) {
-	if (I != 0)
-		sum = I_ / I;
+
+/* SetOutputLimits(...)****************************************************
+ *     This function will be used far more often than SetInputLimits.  while
+ *  the input to the controller will generally be in the 0-1023 range (which is
+ *  the default already,)  the output will be a little different.  maybe they'll
+ *  be doing a time window and will need 0-8000 or something.  or maybe they'll
+ *  want to clamp it from 0-125.  who knows.  at any rate, that can all be done
+ *  here.
+ **************************************************************************/
+void PID::SetOutputLimits(double Min, double Max) {
+	if (Min >= Max)
+		return;
+	outMin = Min;
+	outMax = Max;
+
+	if (inAuto) {
+		if (myOutput > outMax)
+			myOutput = outMax;
+		else if (myOutput < outMin)
+			myOutput = outMin;
+
+		if (ITerm > outMax)
+			ITerm = outMax;
+		else if (ITerm < outMin)
+			ITerm = outMin;
+	}
+}
+
+/* SetMode(...)****************************************************************
+ * Allows the controller Mode to be set to manual (0) or Automatic (non-zero)
+ * when the transition from manual to auto occurs, the controller is
+ * automatically initialized
+ ******************************************************************************/
+void PID::SetMode(int Mode) {
+	bool newAuto = (Mode == AUTOMATIC);
+	if (newAuto == !inAuto) { /*we just went from manual to auto*/
+		PID::Initialize();
+	}
+	inAuto = newAuto;
+}
+
+/* Initialize()****************************************************************
+ *	does all the things that need to happen to ensure a bumpless transfer
+ *  from manual to automatic mode.
+ ******************************************************************************/
+void PID::Initialize() {
+	ITerm = myOutput;
+	lastFeedback = myFeedback;
+	if (ITerm > outMax)
+		ITerm = outMax;
+	else if (ITerm < outMin)
+		ITerm = outMin;
+
+}
+void PID::Initialize(double startpoint) {
+	ITerm = startpoint;
+	lastFeedback = myFeedback;
+	if (ITerm > outMax)
+		ITerm = outMax;
+	else if (ITerm < outMin)
+		ITerm = outMin;
+
+}
+
+/* SetControllerDirection(...)*************************************************
+ * The PID will either be connected to a DIRECT acting process (+Output leads
+ * to +Input) or a REVERSE acting process(+Output leads to -Input.)  we need to
+ * know which one, because otherwise we may increase the output when we should
+ * be decreasing.  This is called from the constructor.
+ ******************************************************************************/
+void PID::SetControllerDirection(int Direction) {
+	if (inAuto && Direction != controllerDirection) {
+		kp = (0 - kp);
+		ki = (0 - ki);
+		kd = (0 - kd);
+	}
+	controllerDirection = Direction;
+}
+
+/* Status Funcions*************************************************************
+ * Just because you set the Kp=-1 doesn't mean it actually happened.  these
+ * functions query the internal state of the PID.  they're here for display
+ * purposes.  this are the functions the PID Front-end uses for example
+ ******************************************************************************/
+double PID::GetKp() {
+	return dispKp;
+}
+double PID::GetKi() {
+	return dispKi;
+}
+double PID::GetKd() {
+	return dispKd;
+}
+int PID::GetMode() {
+	return inAuto ? AUTOMATIC : MANUAL;
+}
+int PID::GetDirection() {
+	return controllerDirection;
+}
+void PID::createComputeTimer(ros::NodeHandle* nhPtr, int rate) {
+	SampleTime = 1 / rate;
+	computeCallbackTimer = nhPtr->createTimer(ros::Duration(SampleTime),
+			&PID::ComputeCallback, this);
+}
+double PID::getFeedback() {
+	return myFeedback;
+}
+double PID::getOutput() {
+	return myOutput;
+}
+double PID::getSetpoint() {
+	return mySetpoint;
+}
+void PID::setSetpoint(double sp) {
+	mySetpoint = sp;
+}
+void PID::setFeedback(double ip) {
+	myFeedback = ip;
 }

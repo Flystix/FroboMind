@@ -6,30 +6,31 @@
 class ekfAtt : public Kalman::EKFilter<double,1,false,false,false> {
 public:
 	ekfAtt(double, double);
-	void updateAirspeed(double newAirspeed);
-	void updateAngVel(double newWx, double newWy, double newWz);
+	void updateAngVel(double, double, double);
+	void updateAirspeed(double);
 protected:
-	void makeBaseA();
-	void makeBaseH();
-	void makeBaseV();
-	void makeBaseR();
-	void makeBaseW();
-	void makeBaseQ();
+	void makeBaseA(); // Time
+	void makeBaseH(); // Measure
+	void makeBaseV(); // Measure
+	void makeBaseR(); // Measure
+	void makeBaseW(); // Time
+	void makeBaseQ(); // Time
 
-	void makeA();
-	void makeH();
-	void makeW();
-	void makeProcess();
-	void makeMeasure();
-	void makeDZ();
+	void makeA(); 		// Time
+	void makeH(); 		// Measure
+	void makeW(); 		// Time
+	void makeProcess(); // Time
+	void makeMeasure(); // Measure
+	void makeDZ(); 		// ?
 	double measVar;
 	double processVar;
 private:
-	double Va, wx, wy, wz;
+	double wx, wy, wz;
+	double Va;
 	static const double g = 9.82;
 };
 
-//typedef ekfAttitude::Vector Vector;
-//typedef ekfAttitude::Matrix Matrix;
+//typedef ekfAtt::Vector Vector;
+//typedef ekfAtt::Matrix Matrix;
 
 #endif

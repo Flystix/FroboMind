@@ -2,23 +2,20 @@
 #define EKF_YAW_H
 
 #include "kalman/ekfilter.hpp"
+#include <ros/ros.h>
 
 class ekfYaw : public Kalman::EKFilter<double,1,false,false,true> {
 public:
-	ekfYaw(double, double);
+	ekfYaw(double, double, ros::NodeHandle&);
 	void updateAttitude(double newPitch, double newRoll);
 protected:
 	void makeBaseA();
-	void makeBaseH();
 	void makeBaseV();
 	void makeBaseR();
-	void makeBaseW();
 	void makeBaseQ();
 
-	void makeA();
 	void makeH();
 	void makeW();
-	void makeQ();
 	void makeProcess();
 	void makeCommonProcess();
 	void makeCommonMeasure();

@@ -3,9 +3,9 @@
 
 #include "kalman/ekfilter.hpp"
 
-class ekfAttitude : public Kalman::EKFilter<double,1,false,false,false> {
+class ekfAtt : public Kalman::EKFilter<double,1,false,false,false> {
 public:
-	ekfAttitude(double, double);
+	ekfAtt(double, double);
 	void updateAngVel(double, double, double);
 	void updateAirspeed(double);
 protected:

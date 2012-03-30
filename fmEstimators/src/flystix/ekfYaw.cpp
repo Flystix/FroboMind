@@ -9,7 +9,7 @@ using namespace std;
 
 /* CONSTRUCTORS */
 
-ekfYaw::ekfYaw(double processVariance, double measurementVariance)  {
+ekfYaw::ekfYaw(double processVariance, double measurementVariance, ros::NodeHandle& n)  {
 	// printf("ekfYaw(%2.2,%2.2)...\n", processVariance, measurementVariance);
 //	setSizeX(2);	//!< Size of the state vector. (Yaw)
 //	setSizeU(3);	//!< Size of the input vector. (wy, wz)
@@ -23,32 +23,24 @@ ekfYaw::ekfYaw(double processVariance, double measurementVariance)  {
 //	B0[0] =  17.2701; // [nT]
 //	B0[1] =   0.5980; // [nT]
 //	B0[2] =  46.9140; // [nT]
-	B0[0] =  0.172701; // [G]
-	B0[1] =  0.005980; // [G]
-	B0[2] =  0.469140; // [G]
+	n.param<double>("B0x", B0[0], 0.172701);
+	n.param<double>("B0y", B0[1], 0.005980);
+	n.param<double>("B0z", B0[2], 0.469140);
+
 	theta = 0;
 	phi = 0;
+	// ROS_INFO("ekfYaw : ekfYaw : ekfYaw initialized...");
 	// printf("Done");
 }
 
 /* JACOBIANS (A, W, H & V) */
 
 void ekfYaw::makeBaseA() { 	/* df/dx (x,u,0) = 1x1 */
-	// printf("makeBaseA...\n");
+	// ROS_INFO("ekfYaw : makeBaseA");
 	A(1,1) = 0;
+	// ROS_INFO("ekfYaw : done");
 }
 
-void ekfYaw::makeA() {		/* df/dx (x,u,0) = 1x1 */
-	/* Empty */
-	// printf("makeA...\n");
-}
-
-void ekfYaw::makeBaseW() {	/* df/dw (x,u,0) = 1x2 */
-	/* Empty */
-	// printf("makeBaseW...\n");
-}
-
-/* TODO: Fix me */
 void ekfYaw::makeW() {		/* df/dw (x,u,0) = 1x2 */
 	// printf("makeW...\n");
 
@@ -61,13 +53,8 @@ void ekfYaw::makeW() {		/* df/dw (x,u,0) = 1x2 */
 	W(1,2) = cp / ct;
 }
 
-void ekfYaw::makeBaseH() {	/* dh/dx (x,0) = 3x1 */
-	/* Empty */
-	// printf("makeBaseH...\n");
-}
-
 void ekfYaw::makeH() {		/* dh/dx (x,0) = 3x1 */
-	// printf("makeH...\n");
+	// ROS_INFO("ekfYaw : makeH");
 
 	H(1,1) = -ct * sy * B0[0] +
 			  ct * cy * B0[1];
@@ -77,10 +64,11 @@ void ekfYaw::makeH() {		/* dh/dx (x,0) = 3x1 */
 
 	H(3,1) = (-cp * st * sy + sp * cy) * B0[0] +
 			 ( cp * st * cy + sp * sy) * B0[1];
+	// ROS_INFO("ekfYaw : done");
 }
 
 void ekfYaw::makeBaseV() { 	/* dh/dv (x,0) = 3x3 */
-	// printf("makeBaseV...\n");
+	// ROS_INFO("ekfYaw : makeBaseV");
 	V(1,1) = 1.0;
 	V(1,2) = 0.0;
 	V(1,3) = 0.0;
@@ -90,26 +78,23 @@ void ekfYaw::makeBaseV() { 	/* dh/dv (x,0) = 3x3 */
 	V(3,1) = 0.0;
 	V(3,2) = 0.0;
 	V(3,3) = 1.0;
+	// ROS_INFO("ekfYaw : done");
 }
 
 /* COVARIANCE MATRICES (Q & R)*/
 
 void ekfYaw::makeBaseQ() {	/* Process noise covariance = 2x2 */
+	// ROS_INFO("ekfYaw : makeBaseQ");
 	// printf("makeBaseQ...\n");
 	Q(1,1) =  1.00000 * processVar;
 	Q(1,2) =  0.0;
 	Q(2,1) =  0.0;
 	Q(2,2) =  1.00000 * processVar;
-
-}
-
-void ekfYaw::makeQ() {		/* Process noise covariance = 2x2 */
-	/* Empty */
-	// printf("makeQ...\n");
+	// ROS_INFO("ekfYaw : done");
 }
 
 void ekfYaw::makeBaseR() {	/* Measurement noise covariance matrix*/
-	// printf("makeBaseR...\n");
+	// ROS_INFO("ekfYaw : makeBaseR");
 	R(1,1) =  1.000000 * measVar;
 	R(1,2) =  0.0;
 	R(1,3) =  0.0;
@@ -119,21 +104,24 @@ void ekfYaw::makeBaseR() {	/* Measurement noise covariance matrix*/
 	R(3,1) =  0.0;
 	R(3,2) =  0.0;
 	R(3,3) =  1.000000 * measVar;
+	// ROS_INFO("ekfYaw : done");
 }
 
 /* UPDATES - f(x,u,w) & h(x,v) */
 
 void ekfYaw::makeProcess() { // Implements f(x,u,0)
+	// ROS_INFO("ekfYaw : makeProcess");
 	// printf("makeProcess...\n");
 	Vector x_(x.size());
 	double wy = u(1);
 	double wz = u(2);
 	x_(1) = x(1) + wy * (sp / ct) + wz * (cp / ct);
 	x.swap(x_);
+	// ROS_INFO("ekfYaw : done");
 }
 
 void ekfYaw::makeMeasure() { // Implements h(x,u) (Sensor prediction)
-	// printf("makeMeasure...\n");
+	// ROS_INFO("ekfYaw : makeMeasure");
 	Vector z_(z.size());
 
 	z_(1) = ct * cy * B0[0] +
@@ -147,22 +135,24 @@ void ekfYaw::makeMeasure() { // Implements h(x,u) (Sensor prediction)
 			cp * ct * B0[2];
 
 	z.swap(z_);
+	// ROS_INFO("ekfYaw : done");
 }
 
 /* DATA UPDATES */
 
 void ekfYaw::updateAttitude(double newPhi, double newTheta) {
-	// printf("updateAttitude...\n");
+	// ROS_INFO("ekfYaw : updateAttitude");
 	phi = newPhi;
 	theta = newTheta;
 	newAtt = 1;
+	// ROS_INFO("ekfYaw : done");
 }
 
 
 void ekfYaw::makeCommon() {
 	if (!newAtt)
 		return;
-	// printf("makeCommon...\n");
+	// ROS_INFO("ekfYaw : makeCommon");
 	cp = cos(phi);
 	sp = sin(phi);
 	tp = tan(phi);
@@ -170,27 +160,33 @@ void ekfYaw::makeCommon() {
 	st = sin(theta);
 	tt = tan(theta);
 	newAtt = 0;
+	// ROS_INFO("ekfYaw : done");
 }
 
 void ekfYaw::makeCommonMeasure() {
-	// printf("makeCommonMeasure...\n");
+	// ROS_INFO("ekfYaw : makeCommonMeasure");
 	makeCommon();
 	cy = cos(x(1));
 	sy = sin(x(1));
 	ty = tan(x(1));
+	// ROS_INFO("ekfYaw : done");
 }
 void ekfYaw::makeCommonProcess() {
-	// printf("makeCommonProcess...\n");
+	// ROS_INFO("ekfYaw : makeCommonProcess");
 	makeCommon();
 	cy = cos(x(1));
 	sy = sin(x(1));
 	ty = tan(x(1));
+	// ROS_INFO("ekfYaw : done");
 }
 
 void ekfYaw::makeDZ() {
-	// printf("makeDZ...\n");
+	// ROS_INFO("ekfYaw : makeDZ");
+	if (x(1) > 10 * M_PI || x(1) < -10 * M_PI)
+		x(1) = 0;
 	while (x(1) >  M_PI)
 		x(1) -= 2 * M_PI;
 	while (x(1) < -M_PI)
 		x(1) += 2 * M_PI;
+	// ROS_INFO("ekfYaw : done");
 }

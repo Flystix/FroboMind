@@ -28,17 +28,17 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 	const unsigned n_pr = 2;	//nb states
 	const unsigned m_pr = 3;	//nb measures
 	static const double _P0_pr[] = {1.0, 0.0, 0.0, 1.0};
-	ekfAttitude::Vector x_pr(n_pr);
-	ekfAttitude::Matrix P0_pr(n_pr, n_pr, _P0_pr);
-	ekfAttitude::Vector z_pr(m_pr);
+	ekfAtt::Vector x_pr(n_pr);
+	ekfAtt::Matrix P0_pr(n_pr, n_pr, _P0_pr);
+	ekfAtt::Vector z_pr(m_pr);
 	z_pr(1) = 0;
 	z_pr(2) = 0;
 	z_pr(3) = 0;
-	ekfAttitude::Vector u_pr(m_pr);
+	ekfAtt::Vector u_pr(m_pr);
 	x_pr(1) = 0;
 	x_pr(2) = 0;
 
-	attitudeEstimator = new ekfAttitude(gyroVar, accVar);
+	attitudeEstimator = new ekfAtt(gyroVar, accVar);
 	attitudeEstimator->init(x_pr, P0_pr);
 	ROS_INFO("fmEstimator : Done");
 
@@ -52,7 +52,7 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 	z_y(1) = 0;
 	z_y(2) = 0;
 	z_y(3) = 0;
-	ekfAttitude::Vector u_y(4);
+	ekfAtt::Vector u_y(4);
 	x_y(1) = 0;
 
 	headingEstimator = new ekfYaw(gyroVar, magVar);
@@ -91,8 +91,8 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 	static ros::Time _stamp = ros::Time::now();
 	double dt = (msg.stamp - _stamp).toSec();
 	_stamp = msg.stamp;
-	ekfAttitude::Vector uAtt(3);
-	ekfAttitude::Vector xAtt(2);
+	ekfAtt::Vector uAtt(3);
+	ekfAtt::Vector xAtt(2);
 	ekfYaw::Vector uYaw(2);
 	ekfYaw::Vector xYaw(1);
 
@@ -130,8 +130,8 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 }
 
 void kalman::accCallback(const fmMsgs::accelerometer& msg) {
-	ekfAttitude::Vector z(3);
-	ekfAttitude::Vector x(2);
+	ekfAtt::Vector z(3);
+	ekfAtt::Vector x(2);
 	z(1) = msg.vector.x;
 	z(2) = msg.vector.y;
 	z(3) = msg.vector.z;

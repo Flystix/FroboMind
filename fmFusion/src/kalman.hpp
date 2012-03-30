@@ -43,7 +43,7 @@ private:
 	double levelLimit;
 	double pitotOffset;
 
-	ekfAttitude* attitudeEstimator;
+	ekfAtt* attitudeEstimator;
 	ekfYaw* headingEstimator;
 
 	ros::Timer pub_timer;

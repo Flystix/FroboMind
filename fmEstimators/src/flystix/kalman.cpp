@@ -30,38 +30,14 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 
 	/* INIT EXTENDED KALMAN FILTER FOR PITCH / ROLL*/
 	ROS_INFO("fmEstimator : Initializing pitch/roll ekf...");
-	const unsigned n_pr = 2; //nb states
-	const unsigned m_pr = 3; //nb measures
-	static const double _P0_pr[] = { 1.0, 0.0, 0.0, 1.0 };
-	ekfAtt::Vector x_pr(n_pr);
-	ekfAtt::Matrix P0_pr(n_pr, n_pr, _P0_pr);
-	ekfAtt::Vector z_pr(m_pr);
-	z_pr(1) = 0;
-	z_pr(2) = 0;
-	z_pr(3) = 0;
-	ekfAtt::Vector u_pr(m_pr);
-	x_pr(1) = 0;
-	x_pr(2) = 0;
-
-	attitudeEstimator = new ekfAtt(gyroVar, accVar);
-	attitudeEstimator->init(x_pr, P0_pr);
+	attitudeEstimator = new ekfAttQuat(gyroVar, accVar);
+	resetAtt(0,0);
 	ROS_INFO("fmEstimator : Done");
 
 	/* INIT EXTENDED KALMAN FILTER FOR YAW */
 	ROS_INFO("fmEstimator : Initializing yaw ekf...");
-
-	static const double _P0_y[] = { 1.0 };
-	ekfYaw::Vector x_y(1);
-	ekfYaw::Matrix P0_y(1, 1, _P0_y);
-	ekfYaw::Vector z_y(3);
-	z_y(1) = 0;
-	z_y(2) = 0;
-	z_y(3) = 0;
-	ekfAtt::Vector u_y(4);
-	x_y(1) = 0;
-
 	headingEstimator = new ekfYaw(gyroVar, magVar, n);
-	headingEstimator->init(x_y, P0_y);
+	resetYaw(0);
 	ROS_INFO("fmEstimator : Done");
 
 //	ROS_INFO("fmEstimator : Initializing position ekf....");
@@ -96,8 +72,8 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 	stamp = ros::Time::now();
 	double dt = (stamp - _stamp).toSec();
 	_stamp = stamp;
-	ekfAtt::Vector uAtt(3);
-	ekfAtt::Vector xAtt(2);
+	ekfAttQuat::Vector uAtt(3);
+	ekfAttQuat::Vector xAtt(2);
 	ekfYaw::Vector uYaw(2);
 	ekfYaw::Vector xYaw(1);
 
@@ -135,8 +111,8 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 }
 
 void kalman::accCallback(const fmMsgs::accelerometer& msg) {
-	ekfAtt::Vector z(3);
-	ekfAtt::Vector x(2);
+	ekfAttQuat::Vector z(3);
+	ekfAttQuat::Vector x(2);
 	z(1) = msg.vector.x;
 	z(2) = msg.vector.y;
 	z(3) = msg.vector.z;
@@ -216,13 +192,34 @@ fmMsgs::airframeState* kalman::getState(void) {
 	return &state;
 }
 
+//void kalman::resetAtt(double initPhi, double initTheta) {
+//	double P0[] = { 2 * M_PI, 0.0, 0.0, 2 * M_PI };
+//	double x0[] = { initPhi, initTheta };
+//	ekfAttQuat::Vector x(2, x0);
+//	ekfAttQuat::Matrix P(2, 2, P0);
+//	attitudeEstimator->init(x, P);
+//}
+
 void kalman::resetAtt(double initPhi, double initTheta) {
-	double P0[] = { 2 * M_PI, 0.0, 0.0, 2 * M_PI };
-	double x0[] = { initPhi, initTheta };
-	ekfAtt::Vector x(2, x0);
-	ekfAtt::Matrix P(2, 2, P0);
-	attitudeEstimator->init(x, P);
+	double P0[] = { 1.0, 0.0, 0.0, 0.0,
+	                0.0, 1.0, 0.0, 0.0,
+	                0.0, 0.0, 1.0, 0.0,
+	                0.0, 0.0, 0.0, 1.0};
+	double ph = initPhi / 2;
+	double th = initTheta / 2;
+	double ps = 0;
+	double x0[] = {
+		cos(ph)*cos(th)*cos(ps) + sin(ph)*sin(th)*sin(ps),
+		sin(ph)*cos(th)*cos(ps) - cos(ph)*sin(th)*sin(ps),
+		cos(ph)*sin(th)*cos(ps) + sin(ph)*cos(th)*sin(ps),
+		cos(ph)*cos(th)*sin(ps) - sin(ph)*sin(th)*cos(ps)
+	};
+
+	ekfAttQuat::Vector x1(4, x0);
+	ekfAttQuat::Matrix P(4, 4, P0);
+	attitudeEstimator->init(x1, P);
 }
+
 void kalman::resetYaw(double initPsi) {
 	double P0[] = { 2 * M_PI };
 	double x0[] = { initPsi };

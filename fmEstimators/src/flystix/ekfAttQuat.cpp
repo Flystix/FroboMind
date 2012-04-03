@@ -5,7 +5,7 @@
 #include <iostream>
 #include <ros/ros.h>
 
-#define DEBUG 	1
+#define DEBUG	0
 
 #if DEBUG == 1
 #define DEBUG_STR(str)	ROS_INFO(str);
@@ -22,6 +22,7 @@ ekfAttQuat::ekfAttQuat(double processVariance, double measurementVariance) {
 	//	setSizeZ(3);	//!< Size of the measurement vector.
 	//	setSizeV(3); 	//!< Size of the measurement noise vector.
 	setDim(4, 3, 3, 3, 3);
+	xEuler.resize(2);
 	measVar = measurementVariance;
 	processVar = processVariance;
 }
@@ -42,17 +43,15 @@ void ekfAttQuat::makeDZ() {
 	DEBUG_STR("ekfAttQuat : Done!");
 }
 
-void ekfAttQuat::makeBaseA() {
-	DEBUG_STR("ekfAttQuat : makeBaseA...");
-	//	A(1,1) = tt*(q*cp - r*sp);
-	//	A(1,2) = (q*sp + r*cp)/(ct*ct);
-	//	A(2,1) = -q*sp - r*cp;
-	A(2, 2) = 0;
-	DEBUG_STR("ekfAttQuat : done");
-}
-
 void ekfAttQuat::makeA() {
 	DEBUG_STR("ekfAttQuat : makeA...");
+	/*
+	 * [ 1, -p, -q, -r]
+	 * [ p,  1,  r, -q]
+	 * [ q, -r,  1,  p]
+	 * [ r,  q, -p,  1]
+	 */
+
 	double p = u(1) / 2;
 	double q = u(2) / 2;
 	double r = u(3) / 2;
@@ -80,37 +79,29 @@ void ekfAttQuat::makeA() {
 	DEBUG_STR("ekfAttQuat : done");
 }
 
-void ekfAttQuat::makeBaseW() {
-	DEBUG_STR("ekfAttQuat : makeBaseW...");
-	W(1, 1) = 1;
-	//	W(1,2) = tt * sp;
-	//	W(1,3) = tt * cp;
-	W(2, 1) = 0;
-	//	W(2,2) = cp;
-	//	W(2,3) = -sp;
-	DEBUG_STR("ekfAttQuat : done");
-}
-
 void ekfAttQuat::makeW() {
 	DEBUG_STR("ekfAttQuat : make...");
 	/*
-	 * [ -q1, -q2, -q3]
-	 * [  q0, -q3,  q2]
-	 * [  q3,  q0, -q1]
-	 * [ -q2,  q1,  q0]
+	 * [ -x2, -x3, -x4]
+	 * [  x1, -x4,  x3]
+	 * [  x4,  x1, -x2]
+	 * [ -x3,  x2,  x1]
 	 */
 	W(1, 1) = -x(2);
 	W(1, 2) = -x(3);
 	W(1, 3) = -x(4);
-	W(2, 1) = x(1);
+
+	W(2, 1) =  x(1);
 	W(2, 2) = -x(4);
-	W(2, 3) = x(3);
-	W(3, 1) = x(4);
-	W(3, 2) = x(1);
+	W(2, 3) =  x(3);
+
+	W(3, 1) =  x(4);
+	W(3, 2) =  x(1);
 	W(3, 3) = -x(2);
+
 	W(4, 1) = -x(3);
-	W(4, 2) = x(2);
-	W(4, 3) = x(1);
+	W(4, 2) =  x(2);
+	W(4, 3) =  x(1);
 	DEBUG_STR("ekfAttQuat : done");
 }
 
@@ -130,30 +121,31 @@ void ekfAttQuat::makeBaseQ() {
 
 void ekfAttQuat::makeH() {
 	DEBUG_STR("ekfAttQuat : makeH...");
+
 	/* jacobian(h, x)
-	 * [ -2*g*q2, -2*g*q3, -2*g*q0, -2*g*q1]
-	 * [  2*g*q1,  2*g*q0, -2*g*q3, -2*g*q2]
-	 * [ -2*g*q0,  2*g*q1,  2*g*q2, -2*g*q3]
-	 */
-	H(1, 1) = -2 * g * x(3); // -2*g*q2
-	H(1, 2) = -2 * g * x(4); // -2*g*q3
-	H(1, 3) = -2 * g * x(1); // -2*g*q0
-	H(1, 4) = -2 * g * x(2); // -2*g*q1
-	H(2, 1) = 2 * g * x(2); //  2*g*q1
-	H(2, 2) = 2 * g * x(1); //  2*g*q0
-	H(2, 3) = -2 * g * x(4); // -2*g*q3
-	H(2, 4) = -2 * g * x(3); // -2*g*q2
-	H(3, 1) = -2 * g * x(1); // -2*g*q0
-	H(3, 2) = 2 * g * x(2); //  2*g*q1
-	H(3, 3) = 2 * g * x(3); //  2*g*q2
-	H(3, 4) = -2 * g * x(4); // -2*g*q3
+//	[  2*g*x3, -2*g*x4,  2*g*x1, -2*g*x2]
+//	[ -2*g*x2, -2*g*x1, -2*g*x4, -2*g*x3]
+//	[ -2*g*x1,  2*g*x2,  2*g*x3, -2*g*x4]
+*/
+	H(1, 1) =  2 * g * x(3);
+	H(1, 2) = -2 * g * x(4);
+	H(1, 3) =  2 * g * x(1);
+	H(1, 4) = -2 * g * x(2);
+	H(2, 1) = -2 * g * x(2);
+	H(2, 2) = -2 * g * x(1);
+	H(2, 3) = -2 * g * x(4);
+	H(2, 4) = -2 * g * x(3);
+	H(3, 1) = -2 * g * x(1);
+	H(3, 2) =  2 * g * x(2);
+	H(3, 3) =  2 * g * x(3);
+	H(3, 4) = -2 * g * x(4);
 	DEBUG_STR("ekfAttQuat : done...");
 }
 
 void ekfAttQuat::makeBaseV() {
 	DEBUG_STR("ekfAttQuat : makeBaseV...");
-	for (int i = 1; i <= V.nrow(); i++)
-		for (int j = 1; j <= V.ncol(); j++)
+	for (unsigned int i = 1; i <= V.nrow(); i++)
+		for (unsigned int j = 1; j <= V.ncol(); j++)
 			V(i, j) = (i == j ? 1.0 : 0.0);
 	DEBUG_STR("ekfAttQuat : done...");
 }
@@ -185,15 +177,26 @@ void ekfAttQuat::makeProcess() { // Implements f(x,u,0)
 	 *         | p0*q3 - p1*q2 + p2*q1 + p3*q0 |
 	 *         +                               +
 	 */
+							// w = 1
+	double p = u(1) * 0.5; // x
+	double q = u(2) * 0.5; // y
+	double r = u(3) * 0.5; // z
 
-	double p = u(1) * 0.5;
-	double q = u(2) * 0.5;
-	double r = u(3) * 0.5;
+//	x_(1) = x(1) - p * x(2) - q * x(3) - r * x(4);
+//	x_(2) = x(2) + p * x(1) + q * x(4) - r * x(3);
+//	x_(3) = x(3) - p * x(4) + q * x(1) + r * x(2);
+//	x_(4) = x(4) + p * x(3) - q * x(2) + r * x(1);
+
+//    // integrate quaternion rate and normalise
+//    x[1] = x[1] + (-x[2]*p - x[3]*q - x[4]*r)*halfT; 	check
+//    x[2] = x[2] + (x[1]*p + x[3]*r - x[4]*q)*halfT;  	check
+//    x[3] = x[3] + (x[1]*q - x[2]*r + x[4]*p)*halfT;	check
+//    x[4] = x[4] + (x[1]*r + x[2]*q - x[3]*p)*halfT;
 
 	x_(1) = x(1) - p * x(2) - q * x(3) - r * x(4);
-	x_(2) = x(2) + p * x(1) + q * x(4) - r * x(3);
-	x_(3) = x(3) - p * x(4) + q * x(1) + r * x(2);
-	x_(4) = x(4) + p * x(3) - q * x(2) + r * x(1);
+	x_(2) = x(2) + p * x(1) - q * x(4) + r * x(3);
+	x_(3) = x(3) + p * x(4) + q * x(1) - r * x(2);
+	x_(4) = x(4) - p * x(3) + q * x(2) + r * x(1);
 
 	// Normalise....
 	double len = 0;
@@ -226,8 +229,12 @@ void ekfAttQuat::makeMeasure() { // Implements h(x,0)
 	 */
 
 	/* Gravitational vector [m/s²]*/
-	z_(1) = -g * 2 * (x(1) * x(3) - x(2) * x(4));
-	z_(2) =  g * 2 * (x(1) * x(2) + x(3) * x(4));
+	z_(1) = g * 2 * (x(1) * x(3) - x(2) * x(4));
+//	   vx =      2 * ( q2      q4  -  q1     q3); ok
+	z_(2) = -g * 2 * (x(1) * x(2) + x(3) * x(4));
+//	   vy =      2 * (q1      q2  +  q3     q4); ok
+//	z_(3) = -g * (x(1) * x(1) - x(2) * x(2) - x(3) * x(3) + x(4) * x(4));//TODO
+//	   vz =          q1q1     -     q2q2    -    q3q3     +     q4q4; not ok
 	z_(3) = -g * (x(1) * x(1) - x(2) * x(2) - x(3) * x(3) + x(4) * x(4));
 
 	/* Centripetal forces [m/s] * [rad/s] = [m/s²]*/
@@ -252,8 +259,15 @@ void ekfAttQuat::updateAirspeed(double newAirspeed) {
 }
 
 const ekfAttQuat::Vector& ekfAttQuat::getX(void) {
-	Vector xOut(2);
-	xOut(1) = atan2(2*(x(1)*x(2) + x(3)*x(4)), 1 - 2*(x(2)*x(2) + x(3)*x(3)));
-	xOut(2) = asin(2*(x(1)*x(3) - x(4)*x(2)));
-	return xOut;
+	xEuler(1) = atan2(2*(x(1)*x(2) + x(3)*x(4)), 1 - 2*(x(2)*x(2) + x(3)*x(3)));
+//	xEuler(1) = atan2(2*(x(1)*x(2) + x(1)*x(2)), 1 - 2*(x(2)*x(2) + x(3)*x(3)));
+	double input = 	2 *   (x(1)*x(3) - x(4)*x(2));
+	if(input <= -1){
+		xEuler(2) = -M_PI/2;
+	}else if(input >= 1){
+		xEuler(2) = M_PI/2;	
+	}else
+		xEuler(2) = asin( input );
+//	xEuler(2) = asin(-2 *   (x(2)*x(4) - x(1)*x(3)) );
+	return xEuler;
 }

@@ -18,7 +18,7 @@
 		<param name="gauge1_name" value="Indicated Airspeed"/>	
 		<param name="gauge1_unit" value="km/h"/>	
 		<param name="gauge1_start_value" value="0"/>
-		<param name="gauge1_end_value" value="100"/>
+		<param name="gauge1_end_value" value="300"/>
 		<param name="gauge1_initial_step" value="25"/>
 		<param name="gauge1_sub_step" value="5"/>
 		<param name="gauge1_drawing_step" value="10"/>

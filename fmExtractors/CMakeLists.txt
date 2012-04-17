@@ -26,7 +26,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_executable(lidar_row_detector src/lidar_feature_extractors/lidar_row_detect_opencv/maize_detection.cpp)
 
 rosbuild_add_executable(gps_state src/global_pose_extractors/gps_state_node.cpp)
-rosbuild_add_executable(fmTeleGround src/zigbee/TeleGround.cpp)
+#rosbuild_add_executable(fmTeleGround src/zigbee/TeleGround.cpp)
 
 
 #common commands for building c++ executables and libraries

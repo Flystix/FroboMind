@@ -79,28 +79,45 @@ void avr::pull(void) { /* Update radio's and adc's */
 		ROS_WARN("Error pulling radio's and adc's from AVR!\n");
 
 }
-void avr::timerCallback(const ros::TimerEvent&) { /* pull() and dataCallback() */
+void avr::timerCallback(const ros::TimerEvent& e) { /* pull() and dataCallback() */
 	pull();
 	if (dataCallback) {
-		int manOverrule = man_switch > 1500 ? 1 : 0;
-		float vair = get_airspeed(); // Convert [?] -> [m/s]
-		float range = get_range(); // Convert [mm] -> [m]
-		float battery = get_battery_voltage(); // Convert [mV] -> [V]
-		ros::Time _timestamp = timeStamp;
-		float radio_floats[5];
-		for (int i = 0; i < 5; i++)
-			radio_floats[i] = us2fs(radios[i], &(limits[i]));
 
-		(*dataCallback)(&radio_floats, manOverrule, vair, range, battery,
-				_timestamp);
+		fmMsgs::airframeControl control;
+		control.aileron_left  = us2fs(radios[0], &(limits[0]));
+		control.rudder        = us2fs(radios[1], &(limits[1]));
+		control.throttle      = us2fs(radios[2], &(limits[2]));
+		control.elevator      = us2fs(radios[3], &(limits[3]));
+		control.aileron_right = us2fs(radios[4], &(limits[4]));
+		control.mode = man_switch > 1500 ? 1 : 0;
+		control.stamp = e.current_real;
+
+		fmMsgs::airSpeed airspeed;
+		airspeed.airspeed = get_airspeed();
+		airspeed.stamp = e.current_real;
+
+		fmMsgs::battery battery;
+		battery.voltage = get_battery_voltage();
+		battery.stateOfCharge = -1;
+		battery.stamp = e.current_real;
+
+		(*dataCallback)(control, airspeed, battery);
 	}
 }
-void avr::set_servos(float(*data)[5]){ /* convert to ±%fs -> µs, check limits and transfer */
+void avr::set_servos(const fmMsgs::airframeControl& msg){ /* convert to ±%fs -> µs, check limits and transfer */
 	__u16 pulse_width[5];
+	float fs[5];
 	float value;
 	struct servo_limit_struct* lim;
+
+	fs[0] = msg.aileron_left;
+	fs[1] = msg.rudder;
+	fs[2] = msg.throttle;
+	fs[3] = msg.elevator;
+	fs[4] = msg.aileron_right;
+
 	for (int i = 0 ; i < 5 ; i++) {
-		value = (*data)[i];
+		value = fs[i];
 		value = value >  1 ?  1 : value;
 		value = value < -1 ? -1 : value;
 		lim = &(limits[i]);

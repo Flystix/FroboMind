@@ -18,8 +18,9 @@
 #include <fmMsgs/altitude.h>
 #include <fmMsgs/airSpeed.h>
 #include <fmMsgs/airframeState.h>
-#include "ekfAttitude.hpp"
+#include "ekfAttQuat.hpp"
 #include "ekfYaw.hpp"
+//#include "ekfPos.hpp"
 
 class kalman{
 public:
@@ -32,19 +33,28 @@ public:
 	void altCallback(const fmMsgs::altitude&);
 	void pitotCallback(const fmMsgs::airSpeed&);
 	void pubCallback(const ros::TimerEvent&);
+	fmMsgs::airframeState* getState(void);
 private:
-	ros::Publisher state_pub;
+
 	fmMsgs::airframeState state;
-	sem_t attEstLock, yawEstLock;
+	ros::Publisher state_pub;
+	sem_t attEstLock, yawEstLock, posEstLock;
 
 	double wx, wy, wz;
 	double temperature;
 	double pressure;
-	double levelLimit;
 	double pitotOffset;
 
-	ekfAtt* attitudeEstimator;
+//	ekfAtt* attitudeEstimator;
+	ekfAttQuat* attitudeEstimator;
 	ekfYaw* headingEstimator;
+
+	double xAtt[4];
+	double PAtt[16];
+	double xYaw[1];
+	double PYaw[1];
+
+//	ekfPos* positionEstimator;
 
 	ros::Timer pub_timer;
 };

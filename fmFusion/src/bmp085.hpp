@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <linux/string.h>
 #include <fcntl.h>
+#include <fmMsgs/altitude.h>
 
 #define BMP085_I2C_ADDRESS              0x77
 #define BMP085_CHIP_ID                  0x55
@@ -29,7 +30,7 @@
 #define bmp085_requested_temp	0x0010
 #define bmp085_requested_pres	0x0020
 
-typedef void (*bmp085_callBackFunc)(float altitude, float pressure, float temperature, ros::Time);
+typedef void (*bmp085_callBackFunc)(const fmMsgs::altitude&);
 
 class bmp085 {
 public:

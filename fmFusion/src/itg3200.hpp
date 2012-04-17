@@ -9,6 +9,7 @@
 #define ITG3200_HPP_
 
 #include "i2cfile.hpp"
+#include <fmMsgs/gyroscope.h>
 
 #define ITG3200_ADDRESS					0x68
 
@@ -72,7 +73,7 @@
 #define ITG3200_SLEEP						(0x01 << 6)
 #define ITG3200_RESET						(0x01 << 7)
 
-typedef void (*itg3200_callBackFunc)(float (*) [3], ros::Time);
+typedef void (*itg3200_callBackFunc)(const fmMsgs::gyroscope&);
 
 class itg3200 {
 public:
@@ -89,6 +90,7 @@ private:
 	__u8 low_pass;
 	__u8 powermanagement;
 	__s16 bias[3];
+	double freq;
 	i2cfile *i2c;
 	sem_t lock;
 	float data[3];

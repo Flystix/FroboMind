@@ -16,23 +16,25 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-#uncomment if you have defined messages
-# rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
-
 #common commands for building c++ executables and libraries
-rosbuild_add_library(${PROJECT_NAME} src/i2cfile.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/avr.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/adxl345.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/itg3200.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/hmc5883l.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/bmp085.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/ekfAttitude.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/ekfYaw.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/kalman.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
+rosbuild_add_library(sensors src/i2cfile.cpp
+                             src/avr.cpp
+                             src/adxl345.cpp
+                             src/itg3200.cpp
+                             src/hmc5883l.cpp
+                             src/micromag.cpp
+                             src/bmp085.cpp)
+rosbuild_add_library(estimators src/ekfAttQuat.cpp
+                                src/ekfAtt.cpp
+                                src/ekfYaw.cpp
+                                src/kalman.cpp)
+
+
 rosbuild_add_executable(fmFusion src/fmFusion.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(fmFusion sensors estimators)
+
+# rosbuild_add_executable(fmMag src/fmMag.cpp)
+# target_link_libraries(fmMag sensors estimators)
+
+#rosbuild_add_executable(fmKalmanAndRaw src/fmKalmanAndRaw.cpp)
+#target_link_libraries(fmKalmanAndRaw sensors estimators)

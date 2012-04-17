@@ -9,6 +9,7 @@
 #define ADXL345_HPP_
 
 #include "i2cfile.hpp"
+#include <fmMsgs/accelerometer.h>
 #include <semaphore.h>
 #include <ros/ros.h>
 
@@ -74,7 +75,7 @@
 
 #define ADXL_FIFO_STATUS  		0x39	// R  	- FIFO status
 
-typedef void (*adxl_callBackFunc)(float (*)[3], ros::Time);
+typedef void (*adxl_callBackFunc)(const fmMsgs::accelerometer&);
 
 class adxl345 {
 public:
@@ -89,6 +90,7 @@ public:
 private:
 	void initi2c(i2cfile*);
 	__u8 bw_rate, pwct_reg, data_format, fifo_ctl;
+	double freq;
 	sem_t lock;
 	i2cfile *i2c;
 	float data[3];

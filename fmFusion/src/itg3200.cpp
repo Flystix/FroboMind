@@ -15,16 +15,33 @@
 
 #define nInitSamples 100
 
-itg3200::itg3200(i2cfile* i2c_ptr,
-		ros::NodeHandle* nh_ptr,
-		ros::Rate rate,
-		itg3200_callBackFunc dataReadyCallBack = 0) {
+itg3200::itg3200(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate,	itg3200_callBackFunc dataReadyCallBack = 0) {
 	char str[80];
 	ROS_INFO("ITG3200 : Initializing");
 	i2c = i2c_ptr;
 	i2c->write_byte(addr, ITG3200_REG_POWER_MGMT, ITG3200_RESET);
+	freq = 1 / rate.expectedCycleTime().toSec();
+
 	fullscale = ITG3200_FULL_SCALE_2000;
-	low_pass = ITG3200_LP_5;
+
+	/* Setup bandwidth, in order to satisfy the Nyquist theorem*/
+	if (freq > 512)
+		low_pass = ITG3200_LP_256;
+	else if (freq >= 376)
+		low_pass = ITG3200_LP_188;
+	else if (freq >= 196)
+		low_pass = ITG3200_LP_98;
+	else if (freq >= 84)
+		low_pass = ITG3200_LP_42;
+	else if (freq >= 40)
+		low_pass = ITG3200_LP_20;
+	else if (freq >= 20)
+		low_pass = ITG3200_LP_10;
+	else
+		low_pass = ITG3200_LP_5;
+
+	ROS_INFO("ITG3200 : LP/FS REG => 0x%02X", fullscale | low_pass);
+
 	i2c->write_byte(addr, ITG3200_REG_LP_FULL_SCALE, fullscale | low_pass);
 	powermanagement = i2c->read_byte(addr, ITG3200_REG_POWER_MGMT);
 	bias[0] = 0;
@@ -74,17 +91,17 @@ void itg3200::getData(float (*dataOut)[3], ros::Time timeStampOut) {
 	sem_post(&lock);
 }
 void itg3200::timerCallback(const ros::TimerEvent&) {
-	float _data[3];
-	ros::Time _timeStamp;
 	pull();
 	/* Make usr copy of data */
+	fmMsgs::gyroscope myGyro;
 	sem_wait(&lock);
-	for (int i = 0 ; i < 3 ; i++)
-		_data[i] = data[i];
-	_timeStamp = timeStamp;
+	myGyro.vector.x = data[0];
+	myGyro.vector.y = data[1];
+	myGyro.vector.z = data[2];
+	myGyro.stamp = timeStamp;
 	sem_post(&lock);
 	/* Run callback function*/
-	(*dataCallback)(&_data, _timeStamp);
+	(*dataCallback)(myGyro);
 }
 
 itg3200::~itg3200() {

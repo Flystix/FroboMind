@@ -67,13 +67,15 @@ void hmc5883l::timerCallback(const ros::TimerEvent&) {
 	ros::Time _timeStamp;
 	pull();
 	/* Make usr copy of data */
+	fmMsgs::magnetometer myMag;
 	sem_wait(&lock);
-	for (int i = 0 ; i < 3 ; i++)
-		_data[i] = data[i];
-	_timeStamp = timeStamp;
+	myMag.vector.x = data[0];
+	myMag.vector.y = data[1];
+	myMag.vector.z = data[2];
+	myMag.stamp = timeStamp;
 	sem_post(&lock);
 	/* Run callback function*/
-	(*dataCallback)(&_data, _timeStamp);
+	(*dataCallback)(myMag);
 }
 
 void hmc5883l::setScale(int newScale) {

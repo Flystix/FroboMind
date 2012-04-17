@@ -11,6 +11,7 @@
 #include "i2cfile.hpp"
 #include <semaphore.h>
 #include <ros/ros.h>
+#include <fmMsgs/magnetometer.h>
 
 #define HMC5883L_I2C_ADDR       0x1E
 #define HMC5883L_IDENTITY       0x00483433
@@ -54,7 +55,7 @@
 #define hmc5883l_scale_560		6
 #define hmc5883l_scale_810		7
 
-typedef void (*hmc5883l_callBackFunc)(float (*)[3], ros::Time);
+typedef void (*hmc5883l_callBackFunc)(const fmMsgs::magnetometer&);
 
 class hmc5883l {
 public:

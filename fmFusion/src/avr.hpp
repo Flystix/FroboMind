@@ -10,6 +10,9 @@
 
 #include "i2cfile.hpp"
 #include <semaphore.h>
+#include <fmMsgs/airframeControl.h>
+#include <fmMsgs/airSpeed.h>
+#include <fmMsgs/battery.h>
 #include <ros/ros.h>
 
 #define AVR_I2C_ADDRESS				0x08
@@ -44,7 +47,9 @@
 #define AVR_CMD_LOAD_CRITBAT		0x0020
 #define AVR_CMD_SAVE_CRIT_BAT		0x0040
 
-typedef void (*avr_callBackFunc)(float (*radio)[5], int manOverrule, float vair, float range, float battery, ros::Time timestamp);
+typedef void (*avr_callBackFunc)(const fmMsgs::airframeControl&,
+								 const fmMsgs::airSpeed&,
+								 const fmMsgs::battery&);
 
 struct servo_limit_struct {
 	__u16 max;
@@ -59,7 +64,7 @@ public:
 
 	void pull();									/* Update radio's and adc's */
 	void timerCallback(const ros::TimerEvent&);		/* pull() and dataCallback() */
-	void set_servos(float (*data)[5]);				/* convert to ±%fs -> µs, check limits and transfer */
+	void set_servos(const fmMsgs::airframeControl&);				/* convert to ±%fs -> µs, check limits and transfer */
 	void set_servo(int channel, float value);		/* convert to ±%fs -> µs, check limits and transfer */
 	void get_radios(float (*data)[6]);				/* convert to µs -> ±%fs, set and return*/
 	float get_radio(int channel);					/* convert to µs -> ±%fs and return*/

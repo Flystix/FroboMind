@@ -138,16 +138,17 @@ void bmp085::pull(void) {
 		sem_post(&lock);
 
 		if (dataCallback) {
+			fmMsgs::altitude myAlt;
 			/* Run callback function*/
 			// printf("Calling data callback...\n");
 			/* Make usr copy of data */
 			sem_wait(&lock);
-			float _alt = alt;				 // Altitude in meters
-			float _pres = (float)CP * 0.01; // Pressure in hPa
-			float _temp = (float)CT * 0.1;	 // Temp in °C
-			ros::Time _timeStamp = presTimeStamp;
+			myAlt.altitude = alt;
+			myAlt.pressure = (float)CP * 0.01;
+			myAlt.temperature = (float)CT * 0.1;
+			myAlt.stamp = presTimeStamp;
 			sem_post(&lock);
-			(*dataCallback)(_alt, _pres, _temp, _timeStamp);
+			(*dataCallback)(myAlt);
 		}
 		requested = bmp085_requested_none;
 		got_pres = 1;
@@ -173,8 +174,8 @@ void bmp085::pull(void) {
 
 void bmp085::calc_temp(void) {
 	long x1, x2;
-	x1 = ((UT - AC6) * AC5) >> 15;
-	x2 = (MC << 11) / (x1 + MD);
+	x1 = ( ((long)UT - AC6 ) * AC5) >> 15;
+	x2 = ( (long)MC << 11 ) / (x1 + MD);
 	B6 = x1 + x2 - 4000;
 	CT = (x1 + x2 + 8) >> 4;
 }

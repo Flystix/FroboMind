@@ -23,6 +23,7 @@ adxl345::adxl345(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate, adxl
 	char str[16];
 	ROS_INFO("ADXL345 : Initialising...");
 	sem_init(&lock, 0, 1);
+	freq = 1 / rate.expectedCycleTime().toSec();
 	initi2c(i2c_ptr);
 	ROS_INFO("ADXL345 : Setting up data callback...");
 	setCallback(nh_ptr, rate, dataReadyCallBack);
@@ -52,8 +53,18 @@ void adxl345::initi2c(i2cfile* i2c_ptr) {
 				  (0  << 4) | 	// Auto sleep (1 bit)
 				  (0  << 5) ; 	// Link (1 bit)
 
-	bw_rate =     (11 << 0) | 	// Rate (4 bits)
-				  (0  << 4) ; 	// Low power (1 bit)
+	if (freq < 12.5)
+		bw_rate = (7  << 0);
+	else if(freq < 25)
+		bw_rate = (8  << 0);
+	else if(freq < 50)
+		bw_rate = (9  << 0);
+	else if(freq < 100)
+		bw_rate = (10 << 0);
+	else
+		bw_rate = (11 << 0);
+
+	bw_rate |= 	  (0  << 4) ; 	// Low power (1 bit)
 
 	data_format = (3  << 0) | 	// Range (2 bits)
 				  (0  << 2) | 	// Justify (1 bit)
@@ -72,13 +83,18 @@ void adxl345::initi2c(i2cfile* i2c_ptr) {
 			sprintf(str, "%02X, expected %02X", check, ADXL_DEVID);
 			ROS_ERROR("ADXL345 : wrong device signature: %s", str);
 		}
-
 		check  = i2c->write_byte(addr, ADXL_PWCT_REG, pwct_reg);
 		check += i2c->write_byte(addr, ADXL_DATA_FORMAT, data_format);
 		check += i2c->write_byte(addr, ADXL_BW_RATE, bw_rate);
 		check += i2c->write_byte(addr, ADXL_FIFO_CTL, fifo_ctl);
 	if (check != 8)
 		ROS_ERROR("ADXL345 : Init check sum mismatch!");
+	else {
+		ROS_INFO("ADXL35 : PWCT REG => %02X", pwct_reg);
+		ROS_INFO("ADXL35 : DATA_FORMAT REG => %02X", data_format);
+		ROS_INFO("ADXL35 : BW_RATE REG => %02X", bw_rate);
+		ROS_INFO("ADXL35 : FIFO_CTL REG => %02X", fifo_ctl);
+	}
 }
 
 void adxl345::setCallback(ros::NodeHandle* nh_ptr, ros::Rate rate, adxl_callBackFunc datareadyCallback) {
@@ -115,16 +131,16 @@ void adxl345::getData(float (*dataOut)[3], ros::Time timeStampOut) {
 }
 
 void adxl345::timerCallback(const ros::TimerEvent&) {
-	float _data[3];
-	ros::Time _timeStamp;
+	fmMsgs::accelerometer msg;
 	pull();
 	/* Make usr copy of data */
 	sem_wait(&lock);
-	for (int i = 0 ; i < 3 ; i++)
-		_data[i] = data[i];
-	_timeStamp = timeStamp;
+	msg.vector.x = data[0];
+	msg.vector.y = data[1];
+	msg.vector.z = data[2];
+	msg.stamp = timeStamp;
 	sem_post(&lock);
 	/* Run callback function*/
 	if (dataCallback)
-		(*dataCallback)(&_data, _timeStamp);
+		(*dataCallback)(msg);
 }

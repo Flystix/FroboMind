@@ -63,8 +63,6 @@ void hmc5883l::getData(float (*dataOut)[3], ros::Time timeStampOut) {
 }
 
 void hmc5883l::timerCallback(const ros::TimerEvent&) {
-	float _data[3];
-	ros::Time _timeStamp;
 	pull();
 	/* Make usr copy of data */
 	fmMsgs::magnetometer myMag;

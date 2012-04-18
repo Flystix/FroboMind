@@ -22,13 +22,14 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
-rosbuild_add_library(${PROJECT_NAME} src/slip.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/ttySetup.cpp)
-rosbuild_add_library(fmRemoteGround src/slip.cpp)
-rosbuild_add_library(fmRemoteGround src/ttySetup.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
+rosbuild_add_library(Lowlvl src/slip.cpp
+                            src/ttySetup.cpp)
+
 rosbuild_add_executable(fmTeleGround src/fmTeleGround.cpp)
+target_link_libraries(fmTeleGround Lowlvl)
+
 # rosbuild_add_executable(fmRemoteGround src/fmRemoteGround.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+# target_link_libraries(fmRemoteGround Lowlvl)
+
+rosbuild_add_executable(fmTelemetry src/fmTelemetry.cpp)
+target_link_libraries(fmTelemetry Lowlvl)

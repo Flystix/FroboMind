@@ -3,14 +3,15 @@
 #include <string.h>
 
 #include <ros/ros.h>
-#include <fmMsgs/airframeControl.h>
 #include <fmMsgs/airframeState.h>
 #include <fmMsgs/battery.h>
+#include <fmMsgs/airframeControl.h>
 #include <fmMsgs/airSpeed.h>
 #include <fmMsgs/altitude.h>
 #include <fmMsgs/gyroscope.h>
 #include <fmMsgs/accelerometer.h>
 #include <fmMsgs/magnetometer.h>
+#include <fmMsgs/gps_state.h>
 
 #include "i2cfile.hpp"
 #include "avr.hpp"
@@ -76,22 +77,28 @@ int main(int argc, char** argv) {
 	ros::Timer pub_timer;
 
 	std::string modestr;
-	n.param<std::string>("mode", modestr, "est");
+	n.param<std::string>("mode", modestr, "err");
+	std::transform(modestr.begin(), modestr.end(), modestr.begin(), ::tolower);
 
 	if (!modestr.compare("raw")) {
 		mode = SAMPLE_SENSORS | PUBLISH_SENSORS;
-		ROS_WARN("Mode set RAW");
+		ROS_WARN("Mode set RAW: Samples and publishes sensors");
 	} else if (!modestr.compare("flight")) {
 		mode = SAMPLE_SENSORS | RUN_ESTIMATOR;
-		ROS_WARN("Mode set FLIGHT");
+		ROS_WARN("Mode set FLIGHT : Samples sensors, estimates and publishes state");
 	} else if (!modestr.compare("sim")) {
 		mode = SUBSCRIBE_SENSORS | RUN_ESTIMATOR;
-		ROS_WARN("Mode set SIM");
+		ROS_WARN("Mode set SIM : Subscribes to sensors, estimates and publishes state");
 	} else if (!modestr.compare("all")){
 		mode = SAMPLE_SENSORS | PUBLISH_SENSORS | RUN_ESTIMATOR;
-		ROS_WARN("Something...");
+		ROS_WARN("Mode set ALL : Samples and publishes sensors. Estimates and publishes state");
 	} else {
-		ROS_WARN("Error parsing mode, defaulting to FLIGHT");
+		ROS_WARN("Error parsing mode. Please provide mode: ");
+		ROS_WARN("mode = RAW    : Sample and publish sensors");
+		ROS_WARN("mode = FLIGHT : Sample sensors, estimate and publish state");
+		ROS_WARN("mode = SIM    : Subscribe to sensors, estimate and publish state");
+		ROS_WARN("mode = ALL    : Sample and publish sensors. Estimate and publish state");
+		ROS_WARN("Defaulting to FLIGHT");
 		mode = SAMPLE_SENSORS | RUN_ESTIMATOR;
 	}
 
@@ -103,7 +110,7 @@ int main(int argc, char** argv) {
 		estimator = new kalman(nh, n);
 		statePublisher = nh.advertise<fmMsgs::airframeState>("/airframeState", 1);
 		pub_timer = nh.createTimer(ros::Duration(1 / pubRate),pubCallback);
-		gpsSubscriber = nh.subscribe("/fmExtractors/gps_state_msg", 1, gpsDataCallback);
+		gpsSubscriber = nh.subscribe("/gpsData", 1, gpsDataCallback);
 	}
 
 	if (mode & PUBLISH_SENSORS && mode & SAMPLE_SENSORS) { /* Publish sensors? */
@@ -153,19 +160,21 @@ int main(int argc, char** argv) {
 	ros::spin();
 
 	ROS_INFO("fmFusion : Exiting...");
-	delete myAvr;
-	if (mode & RUN_ESTIMATOR) {
-		delete estimator;
-	}
 
-	if (mode & SAMPLE_SENSORS) {
+	if (myGyro)
 		delete myGyro;
-		delete myAlt;
-		delete myMag;
+	if (myAcc)
 		delete myAcc;
+	if (myMag)
+		delete myMag;
+	if (myAlt)
+		delete myAlt;
+	if (myAvr)
 		delete myAvr;
+	if (i2c)
 		delete i2c;
-	}
+	if (estimator)
+		delete estimator;
 
 	ROS_INFO("fmFusion : Goodbye...");
 	return 0;
@@ -219,7 +228,7 @@ void magDataCallback(const fmMsgs::magnetometer& myMagData) {
 		magPublisher.publish(myMagData);
 }
 
-/* accSubscriber @ "/accData" || myAcc @ i2c*/
+/* altSubscriber @ "/altData" || myAlt @ i2c*/
 void altDataCallback(const fmMsgs::altitude& myAltData) {
 	fmMsgs::altitude msg = myAltData;
 	if (myAvr)
@@ -230,10 +239,12 @@ void altDataCallback(const fmMsgs::altitude& myAltData) {
 		altPublisher.publish(msg);
 }
 
+/* gpsSubscriber @ "/fmExtractors/gps_state_msg"*/
 void gpsDataCallback(const fmMsgs::gps_state& gpsData) {
 	if (mode & RUN_ESTIMATOR && estimator)
 		estimator->gpsCallback(gpsData);
 }
+
 void airspeedDataCallback(const fmMsgs::airSpeed& airSpeedData) {
 	if (mode & RUN_ESTIMATOR && estimator)
 		estimator->pitotCallback(airSpeedData);

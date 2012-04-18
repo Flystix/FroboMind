@@ -9,8 +9,9 @@
 
 	<group ns="fmExtractors">
    	 	<node pkg="fmExtractors" name="gps_state" type="gps_state" output="screen">
-		    	<param name="subscribe_topic_id" value="/fmSensors/gpgga_msg" />	
-			<param name="publish_topic_id" value="/fmExtractors/gps_state_msg" />	 
+		    	<param name="subscribe_gga_id" value="/fmSensors/gpgga_msg" />
+			<param name="subscribe_vtg_id" value="/fmSensors/gpvtg_msg" />		
+			<param name="publish_topic_id" value="/gpsData" />	 
 		</node>
 	</group>
 

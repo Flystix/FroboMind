@@ -3,13 +3,16 @@
 #include "ros/ros.h"
 #include "fmMsgs/gpgga.h"
 #include "fmMsgs/gps_state.h"
+#include "fmMsgs/gpvtg.h"
 #include "boost/tokenizer.hpp"
 #include "boost/lexical_cast.hpp"
 #include <boost/algorithm/string.hpp>
+#include <semaphore.h>
 
 ros::Publisher gps_state_pub;
 std::string frame_id;
 fmMsgs::gps_state gps_state_msg;
+sem_t lock;
 
 
 #define deg_rad      0.01745329251994 /* 2pi/360 */
@@ -101,7 +104,7 @@ void latlon2utm (double lat, double lon,
 
 
 
-void gpsStateCallback(const fmMsgs::gpgga::ConstPtr& msg)
+void ggaStateCallback(const fmMsgs::gpgga::ConstPtr& msg)
 {
 	// save current time
 	gps_state_msg.header.stamp = ros::Time::now();
@@ -131,7 +134,16 @@ void gpsStateCallback(const fmMsgs::gpgga::ConstPtr& msg)
 		gps_state_msg.utm_n = n;
 		gps_state_msg.utm_e = e;
 	}
+	sem_wait(&lock);
 	gps_state_pub.publish (gps_state_msg); // publish the message
+	sem_post(&lock);
+}
+
+void vtgStateCallback(const fmMsgs::gpvtg::ConstPtr& msg){
+	sem_wait(&lock);
+	gps_state_msg.cogt = msg->cogt;
+	gps_state_msg.kph = msg->kph;
+	sem_post(&lock);
 }
 
 int main(int argc, char **argv)
@@ -140,17 +152,23 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh;
 	ros::NodeHandle n("~");
 
-	std::string subscribe_topic_id;
+	std::string subscribe_gga_id;
+	std::string subscribe_vtg_id;
 	std::string publish_topic_id;
 
-	n.param<std::string> ("subscribe_topic_id", subscribe_topic_id, "fmSensors/gpgga_msg");
-	n.param<std::string> ("publish_topic_id", publish_topic_id, "fmExtractors/gps_state_msg");
-//	n.param<std::string> ("frame_id", frame_id, "/base");
+	sem_init(&lock, 0, 1); // Initialize semaphore
 
-	ros::Subscriber sub = n.subscribe(subscribe_topic_id, 1, gpsStateCallback);
+	n.param<std::string> ("subscribe_gga_id", subscribe_gga_id, "/fmSensors/gpgga_msg");
+	n.param<std::string> ("subscribe_vtg_id", subscribe_vtg_id, "/fmSensors/gpvtg_msg");
+	n.param<std::string> ("publish_topic_id", publish_topic_id, "/gpsData");
+
+	ros::Subscriber gga_sub = n.subscribe(subscribe_gga_id, 1, ggaStateCallback);
+	ros::Subscriber vtg_sub = n.subscribe(subscribe_vtg_id, 1, vtgStateCallback);
 	gps_state_pub = n.advertise<fmMsgs::gps_state> (publish_topic_id, 1);
 
 	ros::spin();
+
+	sem_destroy(&lock);
 	return 0;
 }
 

@@ -216,27 +216,26 @@ void kalman::altCallback(const fmMsgs::altitude& msg) {
 }
 
 void kalman::pitotCallback(const fmMsgs::airSpeed& msg) {
-	double Vp, Vi, we, wn, ph, th, ps, alfa, beta, ga;
-	wn = state.Wn;
-	we = state.We;
-	ph = state.pose.x;
-	th = state.pose.y;
-	ps = state.pose.z;
+//	double Vi, we, wn, ph, th, ps, alfa, beta, ga;
+//	wn = state.Wn;
+//	we = state.We;
+//	ph = state.pose.x;
+//	th = state.pose.y;
+//	ps = state.pose.z;
 
-	double rho = (pressure * 100 / 287.085) * (1 / (temperature + 273.15));
-//	Vp = (msg.airspeed < pitotOffset ? 0 : msg.airspeed - pitotOffset); // Pitot data
-	Vi = sqrt(8.064516129 * msg.airspeed / rho) * 1.2; // Indicated airspeed
+//	double rho = (pressure * 100 / 287.085) * (1 / (temperature + 273.15));
+////	Vp = (msg.airspeed < pitotOffset ? 0 : msg.airspeed - pitotOffset); // Pitot data
+//	Vi = sqrt(8.064516129 * msg.airspeed / rho) * 1.2; // Indicated airspeed
+//
+//	alfa = 0; // Angle of attack
+//	beta = 0; // Slip angle
+//	ga = th - alfa * cos(ph) - beta * sin(ph); // Inertial climb angle
+//	state.airspeed = sqrt(
+//			pow((Vi * cos(ps) * cos(ga) - wn), 2)
+//					+ pow((Vi * sin(ps) * cos(ga) - we), 2)
+//					+ pow((Vi * sin(ga)), 2)); // True airspeed
 
-	alfa = 0; // Angle of attack
-	beta = 0; // Slip angle
-	ga = th - alfa * cos(ph) - beta * sin(ph); // Inertial climb angle
-	state.airspeed = sqrt(
-			pow((Vi * cos(ps) * cos(ga) - wn), 2)
-					+ pow((Vi * sin(ps) * cos(ga) - we), 2)
-					+ pow((Vi * sin(ga)), 2)); // True airspeed
-
-	state.airspeed = Vi - 7.5; 
-
+	state.airspeed = (double)msg.airspeed;
 	attitudeEstimator->updateAirspeed(state.airspeed);
 
 }

@@ -119,7 +119,6 @@ void stateCallback(const fmMsgs::airframeState::ConstPtr& msg) {
 void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	// **** get GTK thread lock
 	gdk_threads_enter();
-	telemetryData_ = (*msg);
 
 	/************* speedometer */
 	double airspeed = telemetryData_.airframe.airspeed  * 3.6; // [m/s] -> [km/hr]
@@ -243,9 +242,31 @@ void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
 	//	sprintf(buf, "%d", llStatus_.flightMode);
 	//	gtk_label_set_text(GTK_LABEL (data->flightMode_label), buf);
 
-	//	sprintf(buf, "%d", llStatus_.up_time);
-	//	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
+	#define SUCCESS		333
+	static int fifo[SUCCESS] = {2}; // Set all but first elements to zero.
+	static int index = 0;
+	static int succes = 0;
+	static unsigned int lSeq = 0;
 
+	if (fifo[0] == 2)
+		for (int i = 0 ; i < SUCCESS ; i++)
+			fifo[i] = 0;
+
+	telemetryData_ = (*msg);
+	if (msg->airframe.header.seq != lSeq + 1) {
+		fifo[index++] = 0;
+		index = index >= SUCCESS ? 0 : index;
+		succes += 0 - fifo[index];
+	}else{
+		fifo[index++] = 1;
+		index = index >= SUCCESS ? 0 : index;
+		succes += 1 - fifo[index];
+	}
+	lSeq = msg->airframe.header.seq;
+
+//	printf("%i : %d / %d \n", index, succes, SUCCESS);
+	sprintf(buf, "%6.2f%%", (double)(100 * succes / (double)SUCCESS));
+	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
 
 	gdk_threads_leave();
 }

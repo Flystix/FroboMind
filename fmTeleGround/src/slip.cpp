@@ -32,7 +32,7 @@ void slip_pkg(void* data_in, int fd_out, uint32_t len) {
 	}
 	out[i++] = END;
 	if (write(fd_out, out, i) != i)
-		printf("Wrote wrong number of bytes to serial port!");
+		ROS_WARN("Wrote wrong number of bytes to serial port!");
 }
 
 uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
@@ -42,18 +42,21 @@ uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
 	ros::Rate wait(50);
 	// Wait for STA
 	do{
-		while(read(fd_in, &c, 1) <= 0)
+		while(read(fd_in, &c, 1) <= 0 && ros::ok()) {
+			ros::spinOnce();
 			wait.sleep();
+		}
 	}while(c != STA);
 
 	while(received <= len) {
-		while(read(fd_in, &c, 1) <= 0)
+		while(read(fd_in, &c, 1) <= 0 && ros::ok()) {
+			ros::spinOnce();
 			wait.sleep();
+		}
 
 		switch(c) {
 		case STA:	// Error: Skip invalid package, restart
 			received = 0;
-			printf("Skipped invalid package : Unexpected STA\n");
 			break;
 		case END:	// Return package if any
 			if (received)
@@ -73,8 +76,7 @@ uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
 			case ESC_ESC:
 				c = ESC;
 				break;
-			default:	// Error: ESC should never occur alone
-				printf("Skipped invalid package : ESC %02X\n", c);
+			default:	// Error: ESC should never occur alone, restart
 				received = 0;
 			}
 			/* No break */

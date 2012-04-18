@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
 
 	if (mode & SAMPLE_SENSORS) {
 		delete myGyro;
-		delete myBar;
+		delete myAlt;
 		delete myMag;
 		delete myAcc;
 		delete myAvr;
@@ -170,12 +170,13 @@ int main(int argc, char** argv) {
 	ROS_INFO("fmFusion : Goodbye...");
 	return 0;
 }
-
+/* servoSubscriber @ "/radioData" */
 void avrSetControlsCallback(const fmMsgs::airframeControl& msg) {
 	if (mode & SAMPLE_SENSORS && myAvr)
 		myAvr->set_servos(msg);
 }
 
+/* myAvr @ i2c */
 void avrDataCallback(const fmMsgs::airframeControl& control,
 					 const fmMsgs::airSpeed& airspeed,
 					 const fmMsgs::battery& bat) {

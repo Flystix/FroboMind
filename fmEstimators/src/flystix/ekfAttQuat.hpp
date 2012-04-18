@@ -13,11 +13,8 @@ public:
 	Vector getEulerAngles();
 	const Vector& getX();
 protected:
-	void makeBaseA(); // Time
-	void makeBaseH(); // Measure
 	void makeBaseV(); // Measure
 	void makeBaseR(); // Measure
-	void makeBaseW(); // Time
 	void makeBaseQ(); // Time
 
 	void makeA(); 		// Time
@@ -28,6 +25,7 @@ protected:
 	void makeDZ(); 		// ?
 	double measVar;
 	double processVar;
+	Vector xEuler;
 private:
 	double wx, wy, wz;
 	double Va;

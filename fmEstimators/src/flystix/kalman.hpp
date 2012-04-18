@@ -18,7 +18,7 @@
 #include <fmMsgs/altitude.h>
 #include <fmMsgs/airSpeed.h>
 #include <fmMsgs/airframeState.h>
-#include "ekfAtt.hpp"
+#include "ekfAttQuat.hpp"
 #include "ekfYaw.hpp"
 //#include "ekfPos.hpp"
 
@@ -49,7 +49,8 @@ private:
 	double levelLimit;
 	double pitotOffset;
 
-	ekfAtt* attitudeEstimator;
+//	ekfAtt* attitudeEstimator;
+	ekfAttQuat* attitudeEstimator;
 	ekfYaw* headingEstimator;
 //	ekfPos* positionEstimator;
 

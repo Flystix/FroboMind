@@ -13,4 +13,4 @@ uint8 sat				# Number of satellites in view
 float64 hdop			# Horizontal Dilution Of Precision
 float64 geoid_height	# [m] Mean sea level height above the WGS-84 ellipsoid
 float64 cogt			# Course over ground (true)
-float64 kph				# Velocity [km/h]
+float64 kph			# Velocity [km/h]

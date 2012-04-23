@@ -59,6 +59,7 @@ typedef struct _GpsdViewerOsdUAV {
     gint x_drone,y_drone;
     gboolean need_render;
     gboolean center_on_map;
+    gdouble heading;
 } GpsdViewerOsdUAV;
 
 typedef struct _GpsdViewerOsdControls {
@@ -643,7 +644,7 @@ extern void update_uav_pose_osd(GpsdViewerOsd *self, gboolean center_on_map,gint
 	GpsdViewerOsdUAV *drone = self->priv->drone;
 	
 	drone->x_drone=x;
-   drone->y_drone=y;
+	drone->y_drone=y;
 	drone->center_on_map = center_on_map;
 	drone->need_render = TRUE;
 }
@@ -684,18 +685,24 @@ static void drone_render(GpsdViewerOsd *self, OsmGpsMap *map)
 	cairo_set_source_rgba(cr, 1.0, 1.0, 0.0, 0.0);
 	cairo_paint(cr);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-   
+
 	cairo_set_line_width (cr, 1);
-	cairo_arc (cr, GPSD_VIEWER_OSD_UAV_W/2, GPSD_VIEWER_OSD_COORDINATES_H/2, GPSD_VIEWER_OSD_UAV_RADIUS, 0, 2*M_PI);
-	pat = cairo_pattern_create_radial (GPSD_VIEWER_OSD_UAV_W/2-1, GPSD_VIEWER_OSD_COORDINATES_H/2-1, GPSD_VIEWER_OSD_UAV_RADIUS*0.2,
-														GPSD_VIEWER_OSD_UAV_W/2, GPSD_VIEWER_OSD_COORDINATES_H/2, GPSD_VIEWER_OSD_UAV_RADIUS);
+	cairo_arc (cr,
+	           GPSD_VIEWER_OSD_UAV_W/2,
+	           GPSD_VIEWER_OSD_COORDINATES_H/2,
+	           GPSD_VIEWER_OSD_UAV_RADIUS, 0, 2*M_PI);
+	pat = cairo_pattern_create_radial (GPSD_VIEWER_OSD_UAV_W/2-1,
+	                                   GPSD_VIEWER_OSD_COORDINATES_H/2-1,
+	                                   GPSD_VIEWER_OSD_UAV_RADIUS*0.2,
+	                                   GPSD_VIEWER_OSD_UAV_W/2,
+	                                   GPSD_VIEWER_OSD_COORDINATES_H/2,
+	                                   GPSD_VIEWER_OSD_UAV_RADIUS);
 	cairo_pattern_add_color_stop_rgba (pat,0, 0.8, 0.8, 1.0,0.8);
 	cairo_pattern_add_color_stop_rgba (pat,1, 0.0, 0.0, 0.65,0.8);
 	cairo_set_source (cr, pat);
 	cairo_fill_preserve(cr);
 	cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
 	cairo_stroke (cr);
-		
 	cairo_pattern_destroy (pat);    
 	cairo_destroy(cr);
 	drone->need_render = FALSE;

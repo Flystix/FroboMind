@@ -27,25 +27,24 @@
 #define RUN_ESTIMATOR  				0x04 // If 1-> run estimator and publish state estimate 0-> dont...
 #define PUBLISH_SENSORS    			0x08 // If 1-> publish raw sensor data, 0-> dont...
 
+ros::Publisher radioPublisher; /* Publish from avrDataCallback (if ...?)*/
+ros::Publisher batteryPublisher; /* Publish from avrDataCallback (if ...?)*/
 
-ros::Publisher radioPublisher;		/* Publish from avrDataCallback (if ...?)*/
-ros::Publisher batteryPublisher;	/* Publish from avrDataCallback (if ...?)*/
+ros::Publisher statePublisher; /* Publish from pubCallback (if RUN_ESTIMATOR) */
 
-ros::Publisher statePublisher;		/* Publish from pubCallback (if RUN_ESTIMATOR) */
+ros::Publisher magPublisher; /* Publish from magDataCallback (if PUBLISH_SENSORS) */
+ros::Publisher accPublisher; /* Publish from accDataCallback (if PUBLISH_SENSORS) */
+ros::Publisher gyroPublisher; /* Publish from gyroDataCallback (if PUBLISH_SENSORS) */
+ros::Publisher airspeedPublisher; /* Publish from airspeedDataCallback (if PUBLISH_SENSORS) */
+ros::Publisher altPublisher; /* Publish from altDataCallback (if PUBLISH_SENSORS)*/
 
-ros::Publisher magPublisher;		/* Publish from magDataCallback (if PUBLISH_SENSORS) */
-ros::Publisher accPublisher;		/* Publish from accDataCallback (if PUBLISH_SENSORS) */
-ros::Publisher gyroPublisher;		/* Publish from gyroDataCallback (if PUBLISH_SENSORS) */
-ros::Publisher airspeedPublisher;	/* Publish from airspeedDataCallback (if PUBLISH_SENSORS) */
-ros::Publisher altPublisher;		/* Publish from altDataCallback (if PUBLISH_SENSORS)*/
-
-ros::Subscriber gyroSubscriber;		/* Runs gyroDataCallback (if SUBSCRIBE_SENSORS) */
-ros::Subscriber accSubscriber;		/* Runs accDataCallback (if SUBSCRIBE_SENSORS) */
-ros::Subscriber magSubscriber;		/* Runs magDataCallback (if SUBSCRIBE_SENSORS) */
-ros::Subscriber airspeedSubscriber;	/* Runs airspeedDataCallback (if SUBSCRIBE_SENSORS) */
-ros::Subscriber altSubscriber;		/* Runs altDataCallback (if SUBSCRIBE_SENSORS) */
-ros::Subscriber gpsSubscriber;		/* Runs gpsDataCallback (if RUN_ESTIMATOR) */
-ros::Subscriber servoSubscriber;	/* Runs avrSetControlsCallback (if SAMPLE_SENSORS) */
+ros::Subscriber gyroSubscriber; /* Runs gyroDataCallback (if SUBSCRIBE_SENSORS) */
+ros::Subscriber accSubscriber; /* Runs accDataCallback (if SUBSCRIBE_SENSORS) */
+ros::Subscriber magSubscriber; /* Runs magDataCallback (if SUBSCRIBE_SENSORS) */
+ros::Subscriber airspeedSubscriber; /* Runs airspeedDataCallback (if SUBSCRIBE_SENSORS) */
+ros::Subscriber altSubscriber; /* Runs altDataCallback (if SUBSCRIBE_SENSORS) */
+ros::Subscriber gpsSubscriber; /* Runs gpsDataCallback (if RUN_ESTIMATOR) */
+ros::Subscriber servoSubscriber; /* Runs avrSetControlsCallback (if SAMPLE_SENSORS) */
 
 avr* myAvr = 0;
 i2cfile* i2c;
@@ -63,9 +62,8 @@ void magDataCallback(const fmMsgs::magnetometer&);
 void altDataCallback(const fmMsgs::altitude&);
 void gpsDataCallback(const fmMsgs::gps_state&);
 void airspeedDataCallback(const fmMsgs::airSpeed&);
-void avrDataCallback(const fmMsgs::airframeControl&,
-		   	   	   	 const fmMsgs::airSpeed&,
-		   	   	   	 const fmMsgs::battery&);
+void avrDataCallback(const fmMsgs::airframeControl&, const fmMsgs::airSpeed&,
+                     const fmMsgs::battery&);
 void avrSetControlsCallback(const fmMsgs::airframeControl&);
 void pubCallback(const ros::TimerEvent&);
 
@@ -77,7 +75,7 @@ int main(int argc, char** argv) {
 	ros::Timer pub_timer;
 
 	std::string modestr;
-	n.param<std::string>("mode", modestr, "err");
+	n.param<std::string> ("mode", modestr, "err");
 	std::transform(modestr.begin(), modestr.end(), modestr.begin(), ::tolower);
 
 	if (!modestr.compare("raw")) {
@@ -89,7 +87,7 @@ int main(int argc, char** argv) {
 	} else if (!modestr.compare("sim")) {
 		mode = SUBSCRIBE_SENSORS | RUN_ESTIMATOR;
 		ROS_WARN("Mode set SIM : Subscribes to sensors, estimates and publishes state");
-	} else if (!modestr.compare("all")){
+	} else if (!modestr.compare("all")) {
 		mode = SAMPLE_SENSORS | PUBLISH_SENSORS | RUN_ESTIMATOR;
 		ROS_WARN("Mode set ALL : Samples and publishes sensors. Estimates and publishes state");
 	} else {
@@ -105,45 +103,45 @@ int main(int argc, char** argv) {
 	ROS_INFO("fmAirframe : Advertising topics...");
 	if (mode & RUN_ESTIMATOR) { /* Run state estimator, publish state estimate? */
 		double pubRate;
-		n.param<double>("pubRate", pubRate, 50);
+		n.param<double> ("statePubRate", pubRate, 50);
 		ROS_INFO("fmFusion : Starting estimator...");
 		estimator = new kalman(nh, n);
-		statePublisher = nh.advertise<fmMsgs::airframeState>("/airframeState", 1);
-		pub_timer = nh.createTimer(ros::Duration(1 / pubRate),pubCallback);
+		statePublisher = nh.advertise<fmMsgs::airframeState> ("/airframeState", 1);
+		pub_timer = nh.createTimer(ros::Duration(1 / pubRate), pubCallback);
 		gpsSubscriber = nh.subscribe("/gpsData", 1, gpsDataCallback);
 	}
 
-	if (mode & PUBLISH_SENSORS && mode & SAMPLE_SENSORS) { /* Publish sensors? */
+	if ((mode & PUBLISH_SENSORS) && (mode & SAMPLE_SENSORS)) { /* Publish sensors? */
 		ROS_INFO("fmFusion : Advertising sensor topics...");
-		accPublisher = nh.advertise<fmMsgs::accelerometer>("/accData", 1);
-		gyroPublisher = nh.advertise<fmMsgs::gyroscope>("/gyroData", 1);
-		magPublisher = nh.advertise<fmMsgs::magnetometer>("/magData", 1);
-		airspeedPublisher = nh.advertise<fmMsgs::airSpeed>("/pitotData", 1);
-		altPublisher = nh.advertise<fmMsgs::altitude>("/altData", 1);
+		accPublisher = nh.advertise<fmMsgs::accelerometer> ("/accData", 1);
+		gyroPublisher = nh.advertise<fmMsgs::gyroscope> ("/gyroData", 1);
+		magPublisher = nh.advertise<fmMsgs::magnetometer> ("/magData", 1);
+		airspeedPublisher = nh.advertise<fmMsgs::airSpeed> ("/pitotData", 1);
+		altPublisher = nh.advertise<fmMsgs::altitude> ("/altData", 1);
 	}
 
 	if (mode & SAMPLE_SENSORS) { /* Sampling : Sensor data is read from I2C bus */
 		ROS_INFO("fmFusion : Starting hardware interfaces...");
 
 		double accRate, gyroRate, magRate, barRate, avrRate;
-		n.param<double>("accRate", accRate, 100);
-		n.param<double>("gyroRate", gyroRate, 100);
-		n.param<double>("magRate", magRate, 50);
-		n.param<double>("barRate", barRate, 25);
-		n.param<double>("avrRate", avrRate, 50);
+		n.param<double> ("accRate", accRate, 100);
+		n.param<double> ("gyroRate", gyroRate, 100);
+		n.param<double> ("magRate", magRate, 50);
+		n.param<double> ("barRate", barRate, 25);
+		n.param<double> ("avrRate", avrRate, 50);
 
 		int magWindow;
-		n.param<int>("magWindow", magWindow, 64);
+		n.param<int> ("magWindow", magWindow, 64);
 
-		i2c    = new i2cfile(3);
+		i2c = new i2cfile(3);
 		myGyro = new itg3200(i2c, &nh, ros::Rate(gyroRate), &gyroDataCallback);
-		myAcc  = new adxl345(i2c, &nh, ros::Rate(accRate), &accDataCallback);
-		myMag  = new micromag(i2c, &nh, ros::Rate(magRate), &magDataCallback, magWindow);
-		myAlt  = new bmp085(i2c, &nh, ros::Rate(barRate), &altDataCallback);
-		myAvr  = new avr(i2c, &nh, ros::Rate(avrRate), &avrDataCallback);
+		myAcc = new adxl345(i2c, &nh, ros::Rate(accRate), &accDataCallback);
+		myMag = new micromag(i2c, &nh, ros::Rate(magRate), &magDataCallback, magWindow);
+		myAlt = new bmp085(i2c, &nh, ros::Rate(barRate), &altDataCallback);
+		myAvr = new avr(i2c, &nh, ros::Rate(avrRate), &avrDataCallback);
 
-		radioPublisher = nh.advertise<fmMsgs::airframeControl>("/radioData", 1);
-		batteryPublisher = nh.advertise<fmMsgs::battery>("/batteryData", 1);
+		radioPublisher = nh.advertise<fmMsgs::airframeControl> ("/radioData", 1);
+		batteryPublisher = nh.advertise<fmMsgs::battery> ("/batteryData", 1);
 		servoSubscriber = nh.subscribe("/servoData", 1, avrSetControlsCallback);
 	}
 
@@ -157,6 +155,7 @@ int main(int argc, char** argv) {
 	}
 
 	ROS_INFO("fmFusion : Spinning...");
+
 	ros::spin();
 
 	ROS_INFO("fmFusion : Exiting...");
@@ -181,50 +180,45 @@ int main(int argc, char** argv) {
 }
 /* servoSubscriber @ "/radioData" */
 void avrSetControlsCallback(const fmMsgs::airframeControl& msg) {
-	if (mode & SAMPLE_SENSORS && myAvr)
+	if (myAvr)
 		myAvr->set_servos(msg);
 }
 
 /* myAvr @ i2c */
 void avrDataCallback(const fmMsgs::airframeControl& control,
-					 const fmMsgs::airSpeed& airspeed,
-					 const fmMsgs::battery& bat) {
-	static long nControl = 0;
-
-
-	radioPublisher.publish(control);
-
-	if (mode & RUN_ESTIMATOR && estimator)
+                     const fmMsgs::airSpeed& airspeed,
+                     const fmMsgs::battery& bat) {
+	if (estimator)
 		estimator->pitotCallback(airspeed);
-	if (mode & PUBLISH_SENSORS && airspeedPublisher)
+	if (mode & PUBLISH_SENSORS)
 		airspeedPublisher.publish(airspeed);
 
-
-	if(!(mode & SUBSCRIBE_SENSORS) && !(nControl++ % 50)) {
+	if (!(mode & SUBSCRIBE_SENSORS)) {
 		batteryPublisher.publish(bat);
+		radioPublisher.publish(control);
 	}
 }
 /* gyroSubscriber @ "/gyroData" || myGyro @ i2c*/
 void gyroDataCallback(const fmMsgs::gyroscope& myGyroData) {
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->gyroCallback(myGyroData);
-	if (mode & PUBLISH_SENSORS && gyroPublisher)
+	if (mode & PUBLISH_SENSORS)
 		gyroPublisher.publish(myGyroData);
 }
 
 /* accSubscriber @ "/accData" || myAcc @ i2c*/
 void accDataCallback(const fmMsgs::accelerometer& myAccData) {
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->accCallback(myAccData);
-	if (mode & PUBLISH_SENSORS && accPublisher)
+	if (mode & PUBLISH_SENSORS)
 		accPublisher.publish(myAccData);
 }
 
 /* magSubscriber @ "/magData" || myMag @ i2c*/
 void magDataCallback(const fmMsgs::magnetometer& myMagData) {
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->magCallback(myMagData);
-	if (mode & PUBLISH_SENSORS && magPublisher)
+	if (mode & PUBLISH_SENSORS)
 		magPublisher.publish(myMagData);
 }
 
@@ -233,30 +227,30 @@ void altDataCallback(const fmMsgs::altitude& myAltData) {
 	fmMsgs::altitude msg = myAltData;
 	if (myAvr)
 		msg.range = myAvr->get_range();
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->altCallback(msg);
-	if (mode & PUBLISH_SENSORS && altPublisher)
+	if (mode & PUBLISH_SENSORS)
 		altPublisher.publish(msg);
 }
 
 /* gpsSubscriber @ "/fmExtractors/gps_state_msg"*/
 void gpsDataCallback(const fmMsgs::gps_state& gpsData) {
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->gpsCallback(gpsData);
 }
 
 void airspeedDataCallback(const fmMsgs::airSpeed& airSpeedData) {
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator)
 		estimator->pitotCallback(airSpeedData);
-	if (mode & PUBLISH_SENSORS && airspeedPublisher)
+	if (mode & PUBLISH_SENSORS)
 		airspeedPublisher.publish(airSpeedData);
 }
 
 void pubCallback(const ros::TimerEvent& e) {
 	/* publish state */
 	fmMsgs::airframeState state;
-	if (mode & RUN_ESTIMATOR && estimator)
+	if (estimator) {
 		state = *(estimator->getState());
-	if (mode & RUN_ESTIMATOR && statePublisher)
 		statePublisher.publish(state);
+	}
 }

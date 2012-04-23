@@ -39,7 +39,7 @@ uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
 	uint8_t c = 0;
 	uint32_t received = 0;
 	uint8_t* data = (uint8_t*)data_out;
-	ros::Rate wait(50);
+	ros::Rate wait(100);
 	// Wait for STA
 	do{
 		while(read(fd_in, &c, 1) <= 0 && ros::ok()) {

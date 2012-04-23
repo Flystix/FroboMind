@@ -92,14 +92,19 @@ struct arg
   char **argv;
 };
 
-ros::Subscriber imuSub;
-ros::Subscriber heightSub;
-ros::Subscriber imuCalcDataSub;
-ros::Subscriber gpsDataSub;
-ros::Subscriber llStatusSub;
-ros::Subscriber gpsFixSub;
-ros::Subscriber telemetrySub;
-ros::Subscriber stateSub;
+//ros::Subscriber imuSub;
+//ros::Subscriber heightSub;
+//ros::Subscriber imuCalcDataSub;
+//ros::Subscriber gpsDataSub;
+//ros::Subscriber llStatusSub;
+//ros::Subscriber gpsFixSub;
+//ros::Subscriber telemetrySub;
+//ros::Subscriber stateSub;
+
+ros::Subscriber airframeStateSub;
+ros::Subscriber systemStateSub;
+ros::Subscriber gpsStateSub;
+
 
 sensor_msgs::Imu imuData_;
 mav_msgs::Height heightData_;

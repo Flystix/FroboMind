@@ -1,9 +1,16 @@
 #include "kalman.hpp"
 
+#include <ros/ros.h>
+#include <fmMsgs/fmVector3.h>
+
+ros::Publisher simPub;
+
 kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 	sem_init(&attEstLock, 0, 1);
 	sem_init(&yawEstLock, 0, 1);
 	sem_init(&posEstLock, 0, 1);
+
+	simPub = nh.advertise<fmMsgs::fmVector3>("/simData", 1, 0);
 
 	wx = 0;
 	wy = 0;
@@ -15,11 +22,11 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 	state.Pn = 0;
 	state.We = 0;
 	state.Wn = 0;
-	state.airspeed = 0;
+	state.Va = 0;
 	state.alt = 0;
 	state.climb = 0;
 	state.dist = 0;
-	state.header.frame_id  = "AirFrame";
+	state.header.frame_id = "AirFrame";
 	state.header.seq = 0;
 	state.header.stamp = ros::Time::now();
 	state.incline = 0;
@@ -31,13 +38,13 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 
 	double pitotOffset;
 	double accVar, gyroVar, magVar, gpsVar, pitotVar, pubRate;
-	n.param<double>("accVar", accVar, 1);
-	n.param<double>("gyroVar", gyroVar, 1);
-	n.param<double>("magVar", magVar, 1);
-	n.param<double>("gpsVar", gpsVar, 10);
-	n.param<double>("pitotVar", pitotVar, 1);
-	n.param<double>("pubRate", pubRate, 50);
-	n.param<double>("pitotOffset", pitotOffset, 14.8);
+	n.param<double> ("accVar", accVar, 1);
+	n.param<double> ("gyroVar", gyroVar, 1);
+	n.param<double> ("magVar", magVar, 1);
+	n.param<double> ("gpsVar", gpsVar, 10);
+	n.param<double> ("pitotVar", pitotVar, 1);
+	n.param<double> ("pubRate", pubRate, 50);
+	n.param<double> ("pitotOffset", pitotOffset, 14.8);
 	ROS_INFO("kalman : gyroscope variance : %2.2f", gyroVar);
 	ROS_INFO("kalman : accelerometer variance : %2.2f", accVar);
 	ROS_INFO("kalman : magnetometer variance : %2.2f", magVar);
@@ -45,78 +52,38 @@ kalman::kalman(ros::NodeHandle& nh, ros::NodeHandle& n) {
 	ROS_INFO("kalman : Pitot variance : %2.2f", pitotVar);
 
 	/* INIT EXTENDED KALMAN FILTER FOR PITCH / ROLL*/
-	ROS_INFO("fmEstimator : Initializing pitch/roll ekf...");
+	ROS_INFO("fmFusion : Initializing pitch/roll ekf...");
 	attitudeEstimator = new ekfAttQuat(gyroVar, accVar);
-	attitudeEstimator->updateAirspeed(state.airspeed);
-
-//	double ph = 0.0 / 2.0;
-//	double th = 0.0 / 2.0;
-//	double ps = 0.0;
-
-//	for (int i = 0 ; i < 4 ; i++)
-//		for (int j = 0 ; j < 4 ; j++)
-//			P0Att[i*4 + j] = (i == j ? 10.0 : 0.0);
-//
-//	static const double x0Att[] = {
-//		cos(ph)*cos(th)*cos(ps) + sin(ph)*sin(th)*sin(ps),
-//		sin(ph)*cos(th)*cos(ps) - cos(ph)*sin(th)*sin(ps),
-//		cos(ph)*sin(th)*cos(ps) + sin(ph)*cos(th)*sin(ps),
-//		cos(ph)*cos(th)*sin(ps) - sin(ph)*sin(th)*cos(ps)
-//	};
-
-	for (int i = 0 ; i < 4 ; i++) {
-		xAtt[i] = 0.0;
-		for (int j = 0 ; j < 4 ; j++)
-			PAtt[i*4 + j] = (i == j ? 10.0 : 0.0);
-	}
-
-	static ekfAttQuat::Vector xInitAtt(4, xAtt);
-	static ekfAttQuat::Matrix PInitAtt(4, 4, PAtt);
-	attitudeEstimator->init(xInitAtt, PInitAtt);
-	
+	attitudeEstimator->updateAirspeed(state.Va);
+	attitudeEstimator->reset(0, 0);
 	ekfAttQuat::Vector xAttInit = attitudeEstimator->getXEuler();
 	ROS_INFO("Initial state : x = [%2.2f, %2.2f]", xAttInit(1), xAttInit(2));
-	
-	ROS_INFO("fmEstimator : Done");
 
 	/* INIT EXTENDED KALMAN FILTER FOR YAW */
-	ROS_INFO("fmEstimator : Initializing yaw ekf...");
+	ROS_INFO("fmFusion : Initializing yaw ekf...");
 	headingEstimator = new ekfYaw(gyroVar, magVar, n);
-
-	xYaw[0] = 1.0;
-	PYaw[0] = 0.0;
-
-	static ekfYaw::Vector xInitYaw(1, xYaw);
-	static ekfYaw::Matrix PInitYaw(1, 1, PYaw);
-	headingEstimator->init(xInitYaw, PInitYaw);
+	headingEstimator->reset(0);
 	ekfYaw::Vector xYawInit = headingEstimator->getX();
 	ROS_INFO("Initial state : x = [%2.2f]", xYawInit(1));
 
-	ROS_INFO("fmEstimator : Done");
+	/* INIT EXTENDED KALMAN FILTER FOR POSITON/WIND */
+//	ROS_INFO("fmFusion : Initializing position ekf...");
+//	positionEstimator = new ekfPos(gyroVar, magVar, n);
+//	positionEstimator->reset(0,0,0,0);
+//	ekfPos::Vector xPosInit = positionEstimator->getX();
+//	ROS_INFO("Initial state : x = [%2.2f , %2.2f , %2.2f , %2.2f]", xPosInit(1), xPosInit(2), xPosInit(3), xPosInit(4));
 
-//	ROS_INFO("fmEstimator : Initializing position ekf....");
-//	static const double _P0_p[] = {10000000.0, 1.0, 1.0, 1.0,
-//								   1.0, 10000000.0, 1.0, 1.0,
-//								   1.0, 1.0, 10000000.0, 1.0,
-//							 	   1.0, 1.0, 1.0, 10000000.0};
-//	ekfPos::Vector x_p(4);
-//	ekfPos::Matrix P0_p(4, 4, _P0_p);
-//	ekfPos::Vector z_p(2);
-//	z_p(1) = 0;
-//	z_p(2) = 0;
-//	z_p(3) = 0;
-//	ekfPos::Vector u_p()
-//	ROS_INFO("fmEstimator : Done");
+	ROS_INFO("fmFusion : Done");
 
 	state.header.frame_id = "AirFrame";
 	state.header.seq = 0;
-	state_pub = nh.advertise<fmMsgs::airframeState>("/airframeState", 1);
+	state_pub = nh.advertise<fmMsgs::airframeState> ("/airframeState", 1);
 }
 
 kalman::~kalman() {
 	delete attitudeEstimator;
 	delete headingEstimator;
-//	delete positionEstimator;
+	//	delete positionEstimator;
 }
 
 void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
@@ -161,6 +128,8 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 	state.pose.x = xAtt(1);
 	state.pose.y = xAtt(2);
 	state.pose.z = xYaw(1);
+
+	state.header.stamp = ros::Time::now();
 }
 
 void kalman::accCallback(const fmMsgs::accelerometer& msg) {
@@ -176,6 +145,7 @@ void kalman::accCallback(const fmMsgs::accelerometer& msg) {
 	sem_wait(&attEstLock);
 	attitudeEstimator->measureUpdateStep(z);
 	sem_post(&attEstLock);
+	simPub.publish(attitudeEstimator->getSim());
 	x = attitudeEstimator->getXEuler();
 
 	state.pose.x = x(1);
@@ -206,6 +176,9 @@ void kalman::magCallback(const fmMsgs::magnetometer& msg) {
 void kalman::gpsCallback(const fmMsgs::gps_state& msg) {
 	state.lat = msg.lat;
 	state.lon = msg.lon;
+	state.Vg = msg.kph / 3.6;
+	state.Va = state.Vg / cos(state.pose.y);
+	attitudeEstimator->updateAirspeed(state.Va);
 }
 
 void kalman::altCallback(const fmMsgs::altitude& msg) {
@@ -216,27 +189,27 @@ void kalman::altCallback(const fmMsgs::altitude& msg) {
 }
 
 void kalman::pitotCallback(const fmMsgs::airSpeed& msg) {
-//	double Vi, we, wn, ph, th, ps, alfa, beta, ga;
-//	wn = state.Wn;
-//	we = state.We;
-//	ph = state.pose.x;
-//	th = state.pose.y;
-//	ps = state.pose.z;
+	double Vi, we, wn, ph, th, ps, alfa, beta, ga;
+	wn = state.Wn;
+	we = state.We;
+	ph = state.pose.x;
+	th = state.pose.y;
+	ps = state.pose.z;
 
-//	double rho = (pressure * 100 / 287.085) * (1 / (temperature + 273.15));
-////	Vp = (msg.airspeed < pitotOffset ? 0 : msg.airspeed - pitotOffset); // Pitot data
-//	Vi = sqrt(8.064516129 * msg.airspeed / rho) * 1.2; // Indicated airspeed
-//
+	double rho = (pressure * 100 / 287.085) * (1 / (temperature + 273.15));
+	////	Vp = (msg.Va < pitotOffset ? 0 : msg.Va - pitotOffset); // Pitot data
+	state.Vi = sqrt(8.064516129 * msg.airspeed / rho) * 1.2; // Indicated airspeed
+	//
 //	alfa = 0; // Angle of attack
 //	beta = 0; // Slip angle
 //	ga = th - alfa * cos(ph) - beta * sin(ph); // Inertial climb angle
-//	state.airspeed = sqrt(
-//			pow((Vi * cos(ps) * cos(ga) - wn), 2)
+//	state.Vi = sqrt(
+//					  pow((Vi * cos(ps) * cos(ga) - wn), 2)
 //					+ pow((Vi * sin(ps) * cos(ga) - we), 2)
 //					+ pow((Vi * sin(ga)), 2)); // True airspeed
 
-	state.airspeed = (double)msg.airspeed;
-	attitudeEstimator->updateAirspeed(state.airspeed);
+//	state.Va = (double) msg.Va;
+//	attitudeEstimator->updateAirspeed(state.Va);
 
 }
 

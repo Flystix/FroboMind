@@ -32,244 +32,20 @@
  */
 
 #include <ground_station/ground_station.h>
-#include <fmMsgs/teleAir2Ground.h>
+//#include <fmMsgs/teleAir2Ground.h>
 #include <fmMsgs/airframeState.h>
+#include <fmMsgs/sysState.h>
+#include <fmMsgs/gps_state.h>
 #include <unistd.h>
 
 AppData *data;
 
-void stateCallback(const fmMsgs::airframeState::ConstPtr& msg) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-	fmMsgs::airframeState state = *msg;
+void airframeStateCallback(const fmMsgs::airframeState::ConstPtr& msg);
 
-	/************* speedometer */
-	double airspeed = state.airspeed  * 3.6; // [m/s] -> [km/hr]
-	airspeed = airspeed < 0 ? 0 : airspeed;
-	if (IS_GTK_GAUGE (data->gauge1))
-		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
+void systemStateCallback(const fmMsgs::sysState::ConstPtr&);
 
-	/************* altimeter */
-	double altitude = state.alt;
-	altitude = altitude < 0 ? 0 : altitude;
+void gpsStateCallback(const fmMsgs::gps_state::ConstPtr&);
 
-	if (IS_GTK_ALTIMETER (data->alt))
-		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt), altitude);
-
-	/************* artificial horizon */
-	gdouble roll = -RAD2DEG(state.pose.x);
-	gdouble pitch = RAD2DEG(state.pose.y);
-
-	roll = roll < 0 ? roll + 360 : roll;
-	roll = roll > 360 ? roll - 360 : roll;
-	pitch = pitch > 70 ? 70 : pitch;
-	pitch = pitch < -70 ? -70 : pitch;
-
-	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
-		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
-
-	/************* Turn coordinator */
-	gdouble incline = -state.incline * 6;
-	static gdouble ballp = RAD2DEG(incline), ballv=0;
-	static const double ballMass = 0.005, ballDampening = 0.05;
-	static const double pMax = 100;
-	gdouble balla;
-	static ros::Time t_;
-	ros::Duration dt = ros::Time::now() - t_;
-	t_ = ros::Time::now();
-
-	if (incline > 0.01)
-		incline =  sqrt(incline);
-	else if(incline < -0.01)
-		incline = -sqrt(-incline);
-
-
-	balla = sin(incline - DEG2RAD(ballp)) * 9.82 / ballMass;
-
-//	balla = (incline - ballp);
-	ballv = ballv + dt.toSec() * balla - ballv * ballDampening;
-	ballp = ballp + ballv * dt.toSec();
-
-	if (ballp > pMax) {
-		ballp = pMax;
-		ballv = 0;
-	}
-	if (ballp < -pMax) {
-		ballp = -pMax;
-		ballv = 0;
-	}
-
-	roll = RAD2DEG(state.pose.x);
-	roll = roll < 0 ? roll + 360 : roll;
-	roll = roll > 360 ? roll - 360 : roll;
-
-	if (IS_GTK_TURN_COORDINATOR(data->tc))
-		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, ballp);
-
-	/************* compass */
-	gdouble yaw = RAD2DEG(state.pose.z);
-	yaw = yaw > 360 ? yaw - 360 : yaw;
-	yaw = yaw < 0 ? yaw + 360 : yaw;
-	if (IS_GTK_COMPASS (data->comp))
-		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
-
-	gdk_threads_leave();
-}
-
-void telemetryCallback(const fmMsgs::teleAir2Ground::ConstPtr& msg) {
-	// **** get GTK thread lock
-	gdk_threads_enter();
-
-	/************* speedometer */
-	double airspeed = telemetryData_.airframe.airspeed  * 3.6; // [m/s] -> [km/hr]
-	airspeed = airspeed < 0 ? 0 : airspeed;
-	if (IS_GTK_GAUGE (data->gauge1))
-		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
-
-	/************* altimeter */
-	double altitude = telemetryData_.airframe.alt;
-	altitude = altitude < 0 ? 0 : altitude;
-
-	if (IS_GTK_ALTIMETER (data->alt))
-		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt), altitude);
-
-	/************* artificial horizon */
-	gdouble roll = -RAD2DEG(telemetryData_.airframe.pose.x);
-	gdouble pitch = RAD2DEG(telemetryData_.airframe.pose.y);
-
-	roll = roll < 0 ? roll + 360 : roll;
-	roll = roll > 360 ? roll - 360 : roll;
-	pitch = pitch > 70 ? 70 : pitch;
-	pitch = pitch < -70 ? -70 : pitch;
-
-	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
-		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
-
-	/************* Turn coordinator */
-	gdouble incline = -telemetryData_.airframe.incline * 6;
-	static gdouble ballp = RAD2DEG(incline), ballv=0;
-	static const double ballMass = 0.005, ballDampening = 0.05;
-	static const double pMax = 100;
-	gdouble balla;
-	static ros::Time t_;
-	ros::Duration dt = ros::Time::now() - t_;
-	t_ = ros::Time::now();
-
-	if (incline > 0.01)
-		incline =  sqrt(incline);
-	else if(incline < -0.01)
-		incline = -sqrt(-incline);
-
-
-	balla = sin(incline - DEG2RAD(ballp)) * 9.82 / ballMass;
-
-//	balla = (incline - ballp);
-	ballv = ballv + dt.toSec() * balla - ballv * ballDampening;
-	ballp = ballp + ballv * dt.toSec();
-
-	if (ballp > pMax) {
-		ballp = pMax;
-		ballv = 0;
-	}
-	if (ballp < -pMax) {
-		ballp = -pMax;
-		ballv = 0;
-	}
-
-	roll = RAD2DEG(telemetryData_.airframe.pose.x);
-	roll = roll < 0 ? roll + 360 : roll;
-	roll = roll > 360 ? roll - 360 : roll;
-
-	if (IS_GTK_TURN_COORDINATOR(data->tc))
-		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, ballp);
-
-	/************* compass */
-	gdouble yaw = RAD2DEG(telemetryData_.airframe.pose.z);
-	yaw = yaw > 360 ? yaw - 360 : yaw;
-	yaw = yaw < 0 ? yaw + 360 : yaw;
-	if (IS_GTK_COMPASS (data->comp))
-		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
-
-	/************* battery, cpu, mem */
-
-	double cpu_load = (double) 100 - telemetryData_.sys.cpuload;
-	double memutil = (double) 100 - telemetryData_.sys.memutil;
-	double battery = (double) telemetryData_.sys.battery;
-
-	if (IS_GTK_BAR_GAUGE (data->bg)) {
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1, battery);
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2, cpu_load);
-		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3, memutil);
-	}
-
-	/************* GPS map */
-	gint pixel_x, pixel_y;
-	if (telemetryData_.sys.gps_fix > 0) { //GPS fix/noFix icon
-		OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(telemetryData_.airframe.lat,
-		                                                      telemetryData_.airframe.lon); // lat, lon
-		osm_gps_map_convert_geographic_to_screen(data->map, point, &pixel_x, &pixel_y);
-
-		if (OSM_IS_GPS_MAP (data->map)) {
-			// **** Center map on gps data received
-			if (data->lock_view) {
-				update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
-				osm_gps_map_set_center(data->map, telemetryData_.airframe.lat,
-				                       telemetryData_.airframe.lon); // lat, lon
-			} else {
-				update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
-				osm_gps_map_gps_clear(data->map);
-			}
-
-			// **** Add point to the track
-			osm_gps_map_track_add_point(data->uav_track, point);
-		}
-	}
-
-	/************* Status bar */
-	char buf[FILENAME_MAX];
-
-	if (telemetryData_.sys.gps_fix > 0) { //GPS fix/noFix icon
-		gtk_widget_hide(data->status_fail_icon_gps);
-		gtk_widget_show(data->status_ok_icon_gps);
-	} else {
-		gtk_widget_hide(data->status_ok_icon_gps);
-		gtk_widget_show(data->status_fail_icon_gps);
-	}
-
-	sprintf(buf, "% 3.0f%%", telemetryData_.sys.cpuload);
-	gtk_label_set_text(GTK_LABEL (data->cpuLoad_label), buf);
-
-	//	sprintf(buf, "%d", llStatus_.flightMode);
-	//	gtk_label_set_text(GTK_LABEL (data->flightMode_label), buf);
-
-	#define SUCCESS		333
-	static int fifo[SUCCESS] = {2}; // Set all but first elements to zero.
-	static int index = 0;
-	static int succes = 0;
-	static unsigned int lSeq = 0;
-
-	if (fifo[0] == 2)
-		for (int i = 0 ; i < SUCCESS ; i++)
-			fifo[i] = 0;
-
-	telemetryData_ = (*msg);
-	if (msg->airframe.header.seq != lSeq + 1) {
-		fifo[index++] = 0;
-		index = index >= SUCCESS ? 0 : index;
-		succes += 0 - fifo[index];
-	}else{
-		fifo[index++] = 1;
-		index = index >= SUCCESS ? 0 : index;
-		succes += 1 - fifo[index];
-	}
-	lSeq = msg->airframe.header.seq;
-
-//	printf("%i : %d / %d \n", index, succes, SUCCESS);
-	sprintf(buf, "%6.2f%%", (double)(100 * succes / (double)SUCCESS));
-	gtk_label_set_text(GTK_LABEL (data->upTime_label), buf);
-
-	gdk_threads_leave();
-}
 /**
  * @fn void *startROS (void *user)
  * @brief ROS thread.
@@ -448,14 +224,9 @@ void *startROS(void *user) {
 		// -----------------------------------------------------------------
 		// **** topics subscribing
 		ROS_INFO ("Subscribing to topics");
-		//		imusub = n.subscribe(imutopic, 1, imucallback);
-		//		heightsub = n.subscribe(heighttopic, 1, heightcallback);
-		//		imucalcdatasub = n.subscribe(imucalcdatatopic, 1, imucalcdatacallback);
-		//		//~ gpsdatasub = n.subscribe (gpsdatatopic, 1, gpsdatacallback);
-		//		llstatussub = n.subscribe(llstatustopic, 1, llstatuscallback);
-		//		gpsFixSub = n.subscribe("/fix", 1, &gpsFixCallback);
-		telemetrySub = n.subscribe(telemetryTopic, 1, telemetryCallback);
-		stateSub = n.subscribe("/airframeState", 1, stateCallback);
+		airframeStateSub = n.subscribe("/airframeState", 1, airframeStateCallback);
+		systemStateSub = n.subscribe("/systemState", 1, systemStateCallback);
+		gpsStateSub = n.subscribe("/gpsData", 1, gpsStateCallback);
 
 		ROS_INFO ("Spinning");
 		ros::spin();
@@ -826,4 +597,121 @@ int main(int argc, char **argv) {
 	gtk_main();
 	gdk_threads_leave();
 	return 0;
+}
+
+void airframeStateCallback(const fmMsgs::airframeState::ConstPtr& msg) {
+	gdk_threads_enter();
+	/************* speedometer */
+	double airspeed = msg->Va  * 3.6; // [m/s] -> [km/hr]
+	airspeed = airspeed < 0 ? 0 : airspeed;
+	if (IS_GTK_GAUGE (data->gauge1))
+		gtk_gauge_set_value(GTK_GAUGE (data->gauge1), airspeed);
+
+	/************* altimeter */
+	double altitude = msg->alt;
+	altitude = altitude < 0 ? 0 : altitude;
+
+	if (IS_GTK_ALTIMETER (data->alt))
+		gtk_altimeter_set_alti(GTK_ALTIMETER (data->alt), altitude);
+
+	/************* artificial horizon */
+	gdouble roll = -RAD2DEG(msg->pose.x);
+	gdouble pitch = RAD2DEG(msg->pose.y) * 2;
+
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+	pitch = pitch > 70 ? 70 : pitch;
+	pitch = pitch < -70 ? -70 : pitch;
+
+	if (IS_GTK_ARTIFICIAL_HORIZON (data->arh))
+		gtk_artificial_horizon_set_value(GTK_ARTIFICIAL_HORIZON (data->arh), roll, pitch);
+
+	/************* Turn coordinator */
+	gdouble incline = -msg->incline * 6;
+	static gdouble ballp = RAD2DEG(incline), ballv=0;
+	static const double ballMass = 0.005, ballDampening = 0.05;
+	static const double pMax = 100;
+	gdouble balla;
+	static ros::Time t_;
+	ros::Duration dt = ros::Time::now() - t_;
+	t_ = ros::Time::now();
+
+	if (incline > 0.01)
+		incline =  sqrt(incline);
+	else if(incline < -0.01)
+		incline = -sqrt(-incline);
+
+
+	balla = sin(incline - DEG2RAD(ballp)) * 9.82 / ballMass;
+
+//	balla = (incline - ballp);
+	ballv = ballv + dt.toSec() * balla - ballv * ballDampening;
+	ballp = ballp + ballv * dt.toSec();
+
+	if (ballp > pMax) {
+		ballp = pMax;
+		ballv = 0;
+	}
+	if (ballp < -pMax) {
+		ballp = -pMax;
+		ballv = 0;
+	}
+
+	roll = RAD2DEG(msg->pose.x);
+	roll = roll < 0 ? roll + 360 : roll;
+	roll = roll > 360 ? roll - 360 : roll;
+
+	if (IS_GTK_TURN_COORDINATOR(data->tc))
+		gtk_turn_coordinator_set_value(GTK_TURN_COORDINATOR (data->tc), roll, ballp);
+
+	/************* compass */
+	gdouble yaw = RAD2DEG(msg->pose.z);
+	yaw = yaw > 360 ? yaw - 360 : yaw;
+	yaw = yaw < 0 ? yaw + 360 : yaw;
+	if (IS_GTK_COMPASS (data->comp))
+		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
+	gdk_threads_leave();
+}
+
+void gpsStateCallback(const fmMsgs::gps_state::ConstPtr& msg) {
+	gdk_threads_enter();
+	/************* GPS map */
+	gint pixel_x, pixel_y;
+	if (msg->fix > 0) { //GPS fix/noFix icon
+		OsmGpsMapPoint *point = osm_gps_map_point_new_degrees(msg->lat, msg->lon); // lat, lon
+		osm_gps_map_convert_geographic_to_screen(data->map, point, &pixel_x, &pixel_y);
+
+		if (OSM_IS_GPS_MAP (data->map)) {
+			// **** Center map on gps data received
+			if (data->lock_view) {
+				update_uav_pose_osd(data->osd, TRUE, pixel_x, pixel_y);
+				osm_gps_map_set_center(data->map, msg->lat, msg->lon); // lat, lon
+			} else {
+				update_uav_pose_osd(data->osd, FALSE, pixel_x, pixel_y);
+				osm_gps_map_gps_clear(data->map);
+			}
+
+			// **** Add point to the track
+			osm_gps_map_track_add_point(data->uav_track, point);
+		}
+	}
+	if (IS_GTK_COMPASS (data->comp))
+		gtk_compass_set_course(GTK_COMPASS (data->comp), msg->cogt);
+	gdk_threads_leave();
+}
+
+void systemStateCallback(const fmMsgs::sysState::ConstPtr& msg) {
+	gdk_threads_enter();
+	/************* battery, cpu, mem */
+	double cpu_load = (double) 100 - msg->cpuload;
+	double memutil = (double) 100 - msg->memutil;
+	double battery = (double) msg->battery;
+
+	if (IS_GTK_BAR_GAUGE (data->bg)) {
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 1, battery);
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 2, cpu_load);
+		gtk_bar_gauge_set_value(GTK_BAR_GAUGE (data->bg), 3, memutil);
+	}
+
+	gdk_threads_leave();
 }

@@ -262,11 +262,7 @@ void ekfAttQuat::makeMeasure() { // Implements h(x,0)
 
 	/* Gravitational vector [m/s²]*/
 	z_(1) = g * 2 * (x(1) * x(3) - x(2) * x(4));
-//	   vx =      2 * ( q2      q4  -  q1     q3); ok
 	z_(2) = -g * 2 * (x(1) * x(2) + x(3) * x(4));
-//	   vy =      2 * (q1      q2  +  q3     q4); ok
-//	z_(3) = -g * (x(1) * x(1) - x(2) * x(2) - x(3) * x(3) + x(4) * x(4));//TODO
-//	   vz =          q1q1     -     q2q2    -    q3q3     +     q4q4; not ok
 	z_(3) = -g * (x(1) * x(1) - x(2) * x(2) - x(3) * x(3) + x(4) * x(4));
 
 	/* Centripetal forces [m/s] * [rad/s] = [m/s²]*/
@@ -329,4 +325,13 @@ void ekfAttQuat::reset(double initPhi, double initTheta) {
 	Vector xInit(4, x0);
 	Matrix P(4, 4, P0);
 	init(xInit, P);
+}
+
+fmMsgs::fmVector3 ekfAttQuat::getSim(void) {
+	fmMsgs::fmVector3 ret;
+	Vector s = simulate();
+	ret.x = s(1);
+	ret.y = s(2);
+	ret.z = s(3);
+	return ret;
 }

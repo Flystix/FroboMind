@@ -125,6 +125,7 @@ extern GType gtk_compass_get_type (void) G_GNUC_CONST;
 extern GtkWidget *gtk_compass_new (void);
 extern void gtk_compass_redraw (GtkCompass * comp);
 extern void gtk_compass_set_angle (GtkCompass * comp, gdouble ang);
+extern void gtk_compass_set_course(GtkCompass * comp, gdouble course);
 
 G_END_DECLS
 #endif

@@ -28,8 +28,8 @@ rosbuild_add_library(Lowlvl src/slip.cpp
 rosbuild_add_executable(fmTeleGround src/fmTeleGround.cpp)
 target_link_libraries(fmTeleGround Lowlvl)
 
-# rosbuild_add_executable(fmRemoteGround src/fmRemoteGround.cpp)
-# target_link_libraries(fmRemoteGround Lowlvl)
+rosbuild_add_executable(fmRemoteGround src/fmRemoteGround.cpp)
+target_link_libraries(fmRemoteGround Lowlvl)
 
-rosbuild_add_executable(fmTelemetry src/fmTelemetry.cpp)
-target_link_libraries(fmTelemetry Lowlvl)
+# rosbuild_add_executable(fmTelemetry src/fmTelemetry.cpp)
+# target_link_libraries(fmTelemetry Lowlvl)

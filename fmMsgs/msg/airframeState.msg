@@ -1,6 +1,8 @@
 # State message for airframe.
 Header header
-float64 airspeed		# Indicated airspeed [m/s]
+float64 Va			# True airspeed [m/s]
+float64 Vi			# Indicated airspeed (Pitot) [m/s]
+float64 Vg			# Speed over ground (GPS) [m/s]
 fmVector3 pose			# Roll, pitch, yaw [rad]
 float64 Pn			# UTM Northing [m]
 float64 Pe			# UTM Easting [m]

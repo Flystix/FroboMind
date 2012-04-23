@@ -4,6 +4,7 @@
 #define PRECISION 0.0001
 
 #include "kalman/ekfilter.hpp"
+#include <fmMsgs/fmVector3.h>
 
 class ekfAttQuat : public Kalman::EKFilter<double,1,false,false,false> {
 public:
@@ -14,6 +15,7 @@ public:
 	Vector getEulerAngles();
 	const Vector& getXEuler();
 	void reset(double,double);
+	fmMsgs::fmVector3 getSim(void);
 protected:
 	void makeBaseV(); // Measure
 	void makeBaseR(); // Measure

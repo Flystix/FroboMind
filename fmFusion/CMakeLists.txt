@@ -27,6 +27,7 @@ rosbuild_add_library(sensors src/i2cfile.cpp
 rosbuild_add_library(estimators src/ekfAttQuat.cpp
                                 src/ekfAtt.cpp
                                 src/ekfYaw.cpp
+                                src/ekfPos.cpp
                                 src/kalman.cpp)
 
 

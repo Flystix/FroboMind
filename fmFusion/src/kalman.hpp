@@ -20,7 +20,7 @@
 #include <fmMsgs/airframeState.h>
 #include "ekfAttQuat.hpp"
 #include "ekfYaw.hpp"
-//#include "ekfPos.hpp"
+#include "ekfPos.hpp"
 
 class kalman{
 public:
@@ -40,14 +40,14 @@ private:
 	ros::Publisher state_pub;
 	sem_t attEstLock, yawEstLock, posEstLock;
 
-	double wx, wy, wz;
+	double wx, wy, wz, Pd, Alt;
 	double temperature;
 	double pressure;
 	double pitotOffset;
 
-//	ekfAtt* attitudeEstimator;
 	ekfAttQuat* attitudeEstimator;
 	ekfYaw* headingEstimator;
+	ekfPos* positionEstimator;
 
 	double xAtt[4];
 	double PAtt[16];

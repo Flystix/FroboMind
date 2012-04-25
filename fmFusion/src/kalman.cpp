@@ -163,7 +163,7 @@ void kalman::gyroCallback(const fmMsgs::gyroscope& msg) {
 	sem_post(&yawEstLock);
 	xYaw = headingEstimator->getX();
 	/* Save back to airframe state */
-	state.pose.z = xYaw(1);
+	state.pose.z = fmod(xYaw(1) - 50.0 * M_PI / 180.0, 2*M_PI);
 
 	/* Do Position timeUpdate u = [th ; ps; Pd ; dt];*/
 	uPos(1) = state.pose.y;

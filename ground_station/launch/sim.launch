@@ -2,17 +2,24 @@
 <launch>
 	<group ns="fmFusion">
    	 	<node pkg="fmFusion" name="fmFusion" type="fmFusion" output="screen">
-			<!-- modes: raw, sim, flight or both -->
+			<!--~~~~ fmFusion mode: 'raw', 'sim', 'flight' or 'both' ~~~~-->
 			<param name="mode" value="sim" />
-
-   	 		<param name="gyroVar" value="0.0025" /> <!-- 0.25 -->
-			<param name="accVar" value="500000" /> <!-- 50000 -->
-			<param name="magVar" value="0.005" />   <!-- 0.5 -->
-			<param name="gpsVar" value="10000" />
+			<!--~~~~ State estimator parameters ~~~~-->
 			<param name="speedometer" value="GPS" /> <!-- Pitot or GPS -->
 			<param name="altimeter" value="GPS" /> <!-- Barometer or GPS -->
-			<param name="altVar" value="100" /> <!-- Barometer or GPS -->
+   	 		<param name="gyroVar" value="0.0025" /> <!--     0.0025 -->
+			<param name="accVar" value="50000" />  <!-- 500000      -->
+			<param name="magVar" value="0.05" />   <!--      0.005  -->
+			<param name="gpsVar" value="100000" />   <!-- 100000      -->
+			<param name="altVar" value="100" />	<!--    100      -->
 			<param name="statePubRate" value="50" />
+			<!--~~~~ Data sampling parameters ~~~~-->
+	 		<param name="accRate" value="25.0" />
+   	 		<param name="gyroRate" value="100.0" />
+   	 		<param name="magRate" value="25.0" />
+   	 		<param name="barRate" value="10.0" />
+   	 		<param name="avrRate" value="50.0" />
+			<param name="pitotOffset" value="25.0" />
 		</node>
 	</group>
 

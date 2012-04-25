@@ -126,6 +126,6 @@ extern GtkWidget *gtk_compass_new (void);
 extern void gtk_compass_redraw (GtkCompass * comp);
 extern void gtk_compass_set_angle (GtkCompass * comp, gdouble ang);
 extern void gtk_compass_set_course(GtkCompass * comp, gdouble course);
-
+extern void gtk_compass_set_wind(GtkCompass * comp, gdouble windDirection);
 G_END_DECLS
 #endif

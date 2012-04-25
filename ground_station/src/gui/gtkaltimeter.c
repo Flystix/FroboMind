@@ -425,9 +425,9 @@ extern void gtk_altimeter_redraw (GtkAltimeter * alt)
  * "altitude": double, define the altitude you want to display by the widget - the value is<br>
  * from 0 to 999999.
  */
-extern void gtk_altimeter_set_alti (GtkAltimeter * alt, gdouble alti)
-{
+extern void gtk_altimeter_set_alti (GtkAltimeter * alt, gdouble alti) {
   GtkAltimeterPrivate *priv;
+  static int err = 0;
 
   if (gtk_altimeter_debug)
   {
@@ -439,12 +439,15 @@ extern void gtk_altimeter_set_alti (GtkAltimeter * alt, gdouble alti)
 
   if(!gtk_altimeter_lock_update)
   {
-		if ((alti >= 0) && (alti <= 999999))
-		{
+		if ((alti >= 0) && (alti <= 999999)) {
 			priv->altitude = alti;
+			err = 0;
+		} else if (!err){
+			err = 1;
+			char str[128];
+			sprintf(str, "GtkAltimeter : gtk_altimeter_set_alti : value out of range : %fl", alti);
+			g_warning (str);
 		}
-		else
-			g_warning ("GtkAltimeter : gtk_altimeter_set_alti : value out of range");
   }
 }
 
@@ -1129,7 +1132,7 @@ static void gtk_altimeter_draw_digital (GtkWidget * alt, cairo_t * cr)
   char str[GTK_ALTIMETER_MAX_STRING];
 //  int altitu = priv->altitude * 1000000;
   static int altitu = 0;
-  altitu = altitu * 0.9 + priv->altitude * 1000000 * 0.1;
+  altitu = priv->altitude * 1000000;
 
   cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size (cr, 0.20 * radius);
@@ -1190,7 +1193,7 @@ static void gtk_altimeter_draw_hands (GtkWidget * alt, cairo_t * cr)
   double radius = priv->radius;
   int factor = 1;
   static int altitu = 0;
-  altitu = altitu * 0.9 + priv->altitude * 100000 * 0.1;
+  altitu = priv->altitude * 100000;
 
   // 10 thousand hand
   cairo_save (cr);

@@ -96,6 +96,7 @@ typedef struct _GtkCompassPrivate {
 	gboolean radial_color;
 	gdouble angle;
 	gdouble course;
+	gdouble windDirection;
 
 	/* drawing data */
 	gdouble x;
@@ -165,7 +166,8 @@ static void gtk_compass_draw_plane(GtkWidget * comp, cairo_t * cr);
 
 static void gtk_compass_draw_dynamic(GtkWidget * comp, cairo_t * cr);
 static void gtk_compass_draw_tips_and_numbers(GtkWidget * comp, cairo_t * cr);
-static void gtk_compass_draw_course( comp, cr);
+static void gtk_compass_draw_course(GtkWidget* comp, cairo_t* cr);
+static void gtk_compass_draw_windIndicator(GtkWidget * comp, cairo_t * cr);
 
 static gboolean gtk_compass_debug = FALSE;
 
@@ -427,13 +429,27 @@ extern void gtk_compass_set_course(GtkCompass * comp, gdouble course) {
 	}
 }
 
+extern void gtk_compass_set_wind(GtkCompass * comp, gdouble windDirection) {
+	GtkCompassPrivate *priv;
+	if (gtk_compass_debug) {
+		g_debug ("===> gtk_compass_set_wind()");
+	}
+	g_return_if_fail (IS_GTK_COMPASS (comp));
+
+	priv = GTK_COMPASS_GET_PRIVATE (comp);
+
+	if (!priv->gtk_compass_lock_update) {
+		priv->windDirection = fmod(windDirection, 360);
+	}
+}
+
 /**
  * @fn extern GtkWidget *gtk_compass_new (void)
  * @brief Special Gtk API function. This function is simply a wrapper<br>
  * for convienience.
  * 
  * See GObject and GTK+ references for
- * more informations: http://library.gnome.org/devel/references.html.en
+ * more informations: http://libracairo_save(cr);ry.gnome.org/devel/references.html.en
  */
 extern GtkWidget *gtk_compass_new(void) {
 	if (gtk_compass_debug) {
@@ -476,6 +492,7 @@ static void gtk_compass_draw_dynamic(GtkWidget * comp, cairo_t * cr) {
 	g_return_if_fail (IS_GTK_COMPASS (comp));
 
 	gtk_compass_draw_tips_and_numbers(comp, cr);
+	gtk_compass_draw_windIndicator(comp, cr);
 	gtk_compass_draw_course(comp, cr);
 }
 
@@ -1068,6 +1085,46 @@ static void gtk_compass_draw_plane(GtkWidget * comp, cairo_t * cr) {
 }
 
 /**
+ * @fn static void gtk_compass_draw_windIndicator(GtkWidget * comp, cairo_t * cr)
+ * @brief Private widget's function that draws compass' wind direction indicator using cairo.
+ */
+static void gtk_compass_draw_windIndicator(GtkWidget * comp, cairo_t * cr) {
+	GtkCompassPrivate *priv;
+	if (gtk_compass_debug) {
+		g_debug ("===> gtk_compass_draw_tips_and_numbers()");
+	}
+	g_return_if_fail (IS_GTK_COMPASS (comp));
+	priv = GTK_COMPASS_GET_PRIVATE (comp);
+
+	double x = priv->x;
+	double y = priv->y;
+	double radius = priv->radius * 1.0;
+
+	cairo_move_to(cr, x, y);
+
+	cairo_save(cr);
+	cairo_translate(cr, x, y);
+	x = 0;
+	y = 0;
+	cairo_rotate(cr, -DEG2RAD (priv->angle - priv->windDirection));
+	cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+	cairo_move_to(cr,
+				  x + (radius - 0.09 * radius) * cos(-3 * M_PI / 6),
+				  y + (radius - 0.09 * radius) * sin(-3 * M_PI / 6));
+	cairo_line_to(cr,
+				  x + (radius - 0.0 * radius) * cos(M_PI / 60 - 3 * M_PI / 6),
+				  y + (radius - 0.0 * radius) * sin(M_PI / 60 - 3 * M_PI / 6));
+	cairo_line_to(cr,
+				  x + (radius - 0.0 * radius) * cos(-M_PI / 60 - 3 * M_PI / 6),
+				  y + (radius - 0.0 * radius) * sin(-M_PI / 60 - 3 * M_PI / 6));
+	cairo_move_to(cr,
+				  x + (radius - 0.09 * radius) * cos(-3 * M_PI / 6),
+				  y + (radius - 0.09 * radius) * sin(-3 * M_PI / 6));
+	cairo_fill(cr);
+	cairo_stroke(cr);
+	cairo_restore(cr);
+}
+/**
  * @fn static void gtk_compass_draw_course(GtkWidget * comp, cairo_t * cr)
  * @brief Private widget's function that draws compass' course indicator using cairo.
  */
@@ -1083,14 +1140,12 @@ static void gtk_compass_draw_course(GtkWidget * comp, cairo_t * cr) {
 	double y = priv->y;
 	double radius = priv->radius * 0.62;
 
-	cairo_move_to(cr, x, y);
-
 	cairo_save(cr);
+	cairo_move_to(cr, x, y);
 	cairo_translate(cr, x, y);
 	x = 0;
 	y = 0;
 	cairo_rotate(cr, -DEG2RAD (priv->angle - priv->course));
-	cairo_save(cr);
 	cairo_set_source_rgb(cr, 1.0, 0.70, 0);
 	cairo_move_to(cr,
 	              x + (radius - 0.0 * radius) * cos(-3 * M_PI / 6),

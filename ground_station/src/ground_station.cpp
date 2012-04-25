@@ -668,8 +668,12 @@ void airframeStateCallback(const fmMsgs::airframeState::ConstPtr& msg) {
 	gdouble yaw = RAD2DEG(msg->pose.z);
 	yaw = yaw > 360 ? yaw - 360 : yaw;
 	yaw = yaw < 0 ? yaw + 360 : yaw;
-	if (IS_GTK_COMPASS (data->comp))
+	static double d = 0;
+	if (IS_GTK_COMPASS (data->comp)) {
 		gtk_compass_set_angle(GTK_COMPASS (data->comp), yaw);
+		if (!(msg->We == 0 && msg->Wn == 0))
+			gtk_compass_set_wind(GTK_COMPASS (data->comp), RAD2DEG(atan2(msg->We, msg->Wn)));
+	}
 	gdk_threads_leave();
 }
 

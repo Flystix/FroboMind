@@ -13,7 +13,7 @@
 			<!-- General window parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
 			<param name="window_grayscale_color" value="false"/>
 			<param name="window_radial_color" value="true"/>
-			<param name="telemetry_refresh_rate" value="25"/>
+			<param name="telemetry_refresh_rate" value="50"/>
 			
 			<!-- Altimeter parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
 			<param name="altimeter_unit_is_feet" value="false"/>	
@@ -26,15 +26,15 @@
 			<param name="gauge1_name" value="Indicated Airspeed"/>	
 			<param name="gauge1_unit" value="km/h"/>	
 			<param name="gauge1_start_value" value="0"/>
-			<param name="gauge1_end_value" value="100"/>
-			<param name="gauge1_initial_step" value="25"/>
+			<param name="gauge1_end_value" value="150"/>
+			<param name="gauge1_initial_step" value="5"/>
 			<param name="gauge1_sub_step" value="5"/>
-			<param name="gauge1_drawing_step" value="10"/>
+			<param name="gauge1_drawing_step" value="30"/>
 			<param name="gauge1_color_strip_order" value="GYR"/>	
 			<param name="gauge1_green_strip_start" value="00"/>
-			<param name="gauge1_yellow_strip_start" value="60"/>
+			<param name="gauge1_yellow_strip_start" value="90"/>
 			<param name="gauge1_orange_strip_start" value="60"/>
-			<param name="gauge1_red_strip_start" value="80"/>
+			<param name="gauge1_red_strip_start" value="120"/>
 	
 			<!-- Bar gauges parameteres ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
 			<param name="bg_widget_name" value="Bars..."/>

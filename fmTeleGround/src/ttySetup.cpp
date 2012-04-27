@@ -15,24 +15,14 @@ int ttySetup(int baudRate, const char* path) {
 	int tty_fd;
 	fd_set rdset;
 
-//	memset(&stdio, 0, sizeof(stdio));
-//	stdio.c_iflag = 0;
-//	stdio.c_oflag = 0;
-//	stdio.c_cflag = 0;
-//	stdio.c_lflag = 0;
-//	stdio.c_cc[VMIN] = 1;
-//	stdio.c_cc[VTIME] = 0;
-//	tcsetattr(STDOUT_FILENO, TCSANOW, &stdio);
-//	tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdio);
-//	fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK); // make the reads non-blocking
-
 	memset(&tio, 0, sizeof(tio));
-	tio.c_iflag = 0;
-	tio.c_oflag = 0;
-	tio.c_cflag = CS8 | CREAD | CLOCAL; // 8n1, see termios.h for more information
-	tio.c_lflag = 0;
-	tio.c_cc[VMIN] = 1;
-	tio.c_cc[VTIME] = 5;
+	tio.c_iflag = IGNPAR; /* Ignore bytes with parity errors*/
+	tio.c_oflag = 0; /* Raw output */
+	tio.c_cflag = CS8 | CREAD | CLOCAL | CRTSCTS;
+//	tio.c_cflag = CS8 | CREAD | CLOCAL; // 8n1, see termios.h for more information
+	tio.c_lflag = 0; /* non- canonical */
+	tio.c_cc[VTIME] = 1; /* inter-character timer unused (5) */
+	tio.c_cc[VMIN] = 0; /* blocking read until 5 chars received (1)*/
 
 	tty_fd = open(path, O_RDWR | O_NONBLOCK);
 	cfsetospeed(&tio, get_baud(baudRate));

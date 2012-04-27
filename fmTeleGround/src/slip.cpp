@@ -64,8 +64,10 @@ uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
 			else
 				break;
 		case ESC:	// Reconstruct escaped character
-			while(read(fd_in, &c, 1) <= 0)
+			while(read(fd_in, &c, 1) <= 0 && ros::ok()) {
+				ros::spinOnce();
 				wait.sleep();
+			}
 			switch(c) {
 			case ESC_STA:
 				c = STA;
@@ -77,82 +79,6 @@ uint32_t unslip_pkg(int fd_in, void* data_out, uint32_t len) {
 				c = ESC;
 				break;
 			default:	// Error: ESC should never occur alone, restart
-				received = 0;
-			}
-			/* No break */
-		default:
-			if (received < len)
-				data[received++] = c;
-		}
-	}
-	return -1;
-}
-
-void slip_pkg(void* data_in, std::string* str_out, uint32_t len) {
-//	send_char(END);
-	uint8_t* data = (uint8_t*)data_in;
-	str_out->clear();
-	str_out->append(1, STA);
-	while (len--) {
-		switch(*data) {
-		case STA:
-			str_out->append(1, ESC);
-			str_out->append(1, ESC_STA);
-			break;
-		case END:
-			str_out->append(1, ESC);
-			str_out->append(1, ESC_END);
-			break;
-		case ESC:
-			str_out->append(1, ESC);
-			str_out->append(1, ESC_ESC);
-			break;
-		default:
-			str_out->append(1, *data);
-		}
-		data++;
-	}
-	str_out->append(1, END);
-}
-
-uint32_t unslip_pkg(std::string* str_in, void* data_out, uint32_t len) {
-	uint8_t c;
-	uint32_t received = 0;
-	uint32_t i = 0;
-	uint8_t* data = (uint8_t*)data_out;
-	// Wait for STA
-	do{
-		c = str_in->at(i++);
-	}while(c != STA);
-
-	while(received <= len) {
-		c = str_in->at(i++);
-		printf("%i=%02x \n", i, c);
-		switch(c) {
-		case STA:	// Error: Skip invalid package, restart
-			received = 0;
-			printf("Skipped invalid package : Unexpected STA\n");
-			break;
-		case END:	// Return package if any
-			if (received)
-				return received;
-			else
-				break;
-		case ESC:	// Reconstruct escaped character
-			c = str_in->at(i++);
-			printf("%i=%02x \n", i, c);
-			switch(c) {
-			case ESC_STA:
-				c = STA;
-				break;
-			case ESC_END:
-				c = END;
-				break;
-			case ESC_ESC:
-				c = ESC;
-				break;
-			default:	// Error: ESC should never occur alone
-				printf("Skipped invalid package : ESC %02X\n", c);
 				received = 0;
 			}
 			/* No break */

@@ -444,9 +444,8 @@ extern void gtk_altimeter_set_alti (GtkAltimeter * alt, gdouble alti) {
 			err = 0;
 		} else if (!err){
 			err = 1;
-			char str[128];
-			sprintf(str, "GtkAltimeter : gtk_altimeter_set_alti : value out of range : %fl", alti);
-			g_warning (str);
+			g_warning("Error updating altimeter...");
+//			g_warning (str);
 		}
   }
 }

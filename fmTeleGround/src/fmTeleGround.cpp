@@ -13,6 +13,7 @@
 #include <fmMsgs/airframeState.h>
 #include <fmMsgs/sysState.h>
 #include <fmMsgs/gps_state.h>
+#include <fmMsgs/airframeControl.h>
 
 #include "slip.hpp"
 #include "ttySetup.hpp"
@@ -27,6 +28,7 @@ int main(int argc, char** argv) {
 	ros::Publisher airframeStatePub = nh.advertise<fmMsgs::airframeState> ("/airframeState", 1);
 	ros::Publisher systemStatePub = nh.advertise<fmMsgs::sysState> ("/systemState", 1);
 	ros::Publisher gpsStatePub = nh.advertise<fmMsgs::gps_state> ("/gpsData", 1);
+	ros::Publisher radioPub = nh.advertise<fmMsgs::airframeControl> ("/radioData", 1);
 
 	n.param<int> ("baudrate", baudRate, 115200);
 	n.param<std::string> ("xBeeDevice", device, "/dev/ttyUSB0");
@@ -72,6 +74,7 @@ int main(int argc, char** argv) {
 		fmMsgs::airframeState airframeState;
 		fmMsgs::sysState systemState;
 		fmMsgs::gps_state gpsState;
+		fmMsgs::airframeControl radioData;
 
 		// Do boost / ROS magic to de-serialise message:
 		boost::shared_array<uint8_t> bufIn(new uint8_t[msg_size]); // Create boost array of uint8_t's
@@ -91,6 +94,10 @@ int main(int argc, char** argv) {
 				case 0x3000:
 					ros::serialization::deserialize(streamIn, gpsState);
 					gpsStatePub.publish(gpsState);
+					break;
+				case 0x4000:
+					ros::serialization::deserialize(streamIn, radioData);
+					radioPub.publish(radioData);
 					break;
 				default:
 					ROS_WARN("Unknown message type received : 0x%04X", msg_type);

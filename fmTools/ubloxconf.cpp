@@ -44,7 +44,7 @@ int configure_gps(unsigned char data[], int fd, int ncommands);
 
 int main(int argc, char *argv[]) {
 
-	int failed_commands, succesful_commands, total_commands = 0;
+	int failed_commands = 0, succesful_commands = 0, total_commands = 0;
 	/*
 	 * Reading input parameters and checking if there are enough
 	 */
@@ -65,20 +65,6 @@ int main(int argc, char *argv[]) {
 	printf("device: %s\n", device);
 	printf("baudrate: %ui", baudrate);
 
-	/*
-	 * Open the ublox configuration file
-	 */
-	string confstring;
-	ifstream conffile;
-	string temp;
-	int strindex = 0;
-
-	conffile.open(argv[3]);
-	//conffile.open("/home/hjnyg07/Workspace/ros/stacks/gpsconfig/src/flystixconf.txt");
-	if (!conffile) {
-		cout << "error reading conf file";
-		return 0;
-	}
 
 	/*
 	 * Set up serial port to behave as we like, using termios
@@ -112,12 +98,28 @@ int main(int argc, char *argv[]) {
 
 	newtio.c_lflag = 0;/* set input mode (non-canonical, no echo,...) */
 
-	newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
-	newtio.c_cc[VMIN] = 5; /* blocking read until 5 chars received */
+	newtio.c_cc[VTIME] = 1; /* inter-character timer unused */
+	newtio.c_cc[VMIN] = 0; /* blocking read until 5 chars received */
 
 	tcflush(fd, TCIFLUSH); /* Clean the tty line*/
 	tcsetattr(fd, TCSANOW, &newtio);/* Activate the settings for the port */
 
+	/*
+	 * Open the ublox configuration file
+	 */
+	string confstring;
+	ifstream conffile;
+	string temp;
+	int strindex = 0;
+
+	conffile.open(argv[3]);
+	//conffile.open("/home/hjnyg07/Workspace/ros/stacks/gpsconfig/src/flystixconf.txt");
+	if (!conffile) {
+		cout << "error reading conf file";
+		return 0;
+	}
+
+	
 	/*
 	 * Everything ready, now start parsing the ublox conf file line by line
 	 */
@@ -149,9 +151,9 @@ int main(int argc, char *argv[]) {
 		 * If no ack is recieved after 10 tries, give up and move to next command.
 		 */
 		int count = 0;
-		while (configure_gps(send_bytes, fd, charindex) < 0 && count++ < 10)
+		while (configure_gps(send_bytes, fd, charindex) < 0 && count++ < 3)
 			;
-		if (count > 9) {
+		if (count > 2) {
 			cout << "ERROR sending conf " << total_commands
 					<< " , proceeding to next cmd" << endl;
 			failed_commands++;
@@ -159,6 +161,11 @@ int main(int argc, char *argv[]) {
 			cout << "Command " << total_commands << " configured corectly"
 					<< endl;
 			succesful_commands++;
+		}
+		
+		if(failed_commands > 2){//GPS probably not present -> Abort
+			cout << "ERROR GPS probably not present -> ABORTING" << endl;
+			break;			
 		}
 
 //			while (send_gps_command(send_bytes, charindex, device, baudrate) < 0
@@ -198,7 +205,7 @@ int configure_gps(unsigned char data[], int fd, int ncommands) {
 	 * Now read replys until we get an ack, or give up after 15 tries (bloody gps data spamming the line..)
 	 */
 	if (data[2] == 0x06) { // Only check ack if we have a cfg message
-		for (int i = 0; i < 15; i++) {
+		for (int i = 0; i < 5; i++) {
 			res = read(fd, buf, 255); /* Read reply. Returns after 'newtio.c_cc[VMIN]' chars have been read */
 			buf[res] = 0; /* so we can printf... Not necessary when not printing */
 			cout << "I recieved: ";

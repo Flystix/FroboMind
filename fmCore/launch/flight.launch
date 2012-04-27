@@ -1,7 +1,6 @@
 <!-- Tha launch for tha flight -->
 <launch>
-
-<!--	<group ns="fmCSP">
+	<group ns="fmCSP">
 		<node pkg="fmCSP" name="S0" type="serial_string" output="screen" >
 			<param name="publisher_topic" value="gps_rx" />	
 			<param name="subscriber_topic" value="gps_tx" />	
@@ -25,20 +24,22 @@
 			<param name="subscribe_vtg_id" value="/fmSensors/gpvtg_msg" />		
 			<param name="publish_topic_id" value="/gpsData" />	 
 		</node>
-	</group>-->
+	</group> 
 
 	<group ns="fmFusion">
    	 	<node pkg="fmFusion" name="fmFusion" type="fmFusion" output="screen">
-			<!-- modes: raw, sim or both -->
-			<param name="mode" value="sim" />
-
-   	 		<param name="gyroVar" value="0.25" />
-			<param name="accVar" value="50000" />
-			<param name="magVar" value="0.5" />
-			<param name="gpsVar" value="1" />
-			
-			<param name="pubRate" value="50" />
-
+			<!--~~~~ fmFusion mode: 'raw', 'sim', 'flight' or 'both' ~~~~-->
+			<param name="mode" value="flight" />
+			<!--~~~~ State estimator parameters ~~~~-->
+			<param name="speedometer" value="GPS" /> <!-- Pitot or GPS -->
+			<param name="altimeter" value="GPS" /> <!-- Barometer or GPS -->
+   	 		<param name="gyroVar" value="0.0025" /> <!--      0.0025 -->
+			<param name="accVar" value="50000" />  <!-- 500000      -->
+			<param name="magVar" value="0.05" />   <!--      0.005  -->
+			<param name="gpsVar" value="100000" />   <!-- 100000      -->
+			<param name="altVar" value="100" />	<!--    100      -->
+			<param name="statePubRate" value="50" />
+			<!--~~~~ Data sampling parameters ~~~~-->
 	 		<param name="accRate" value="25.0" />
    	 		<param name="gyroRate" value="100.0" />
    	 		<param name="magRate" value="25.0" />
@@ -47,7 +48,11 @@
 			<param name="pitotOffset" value="25.0" />
 		</node>
 	</group>
-<!--
+
+	<group ns="fmMonitor">
+		<node pkg="fmMonitor" name="fmMonitor" type="fmMonitor" output="screen"> </node>
+	</group>
+
 	<group ns="fmControllers"> 
 		<node pkg="fmControllers" name="flystixController" type="flystixController" output="screen" >
 			<param name="rollP" value="0.7" />	
@@ -55,7 +60,7 @@
 			<param name="rollD" value="3" />	
 			<param name="rollReverse" value="0" />
 
-			<param name="pitchP" value="2.3" />	
+			<param name="pitchP" value="0.7" />	
 			<param name="pitchI" value="0.0001" /> 	
 			<param name="pitchD" value="3" />	
 			<param name="pitchReverse" value="1" />
@@ -84,15 +89,16 @@
 			<param name="updateRate" value="50.0" />
 		</node>
 	</group>	 
--->
-<!--
+
 	<group ns="fmTeleAir">
 		<node pkg="fmTeleAir" name="fmTeleAir" type="fmTeleAir" output="screen" >
 			<param name="xBeeDevice" value="/dev/ttyS2" />
 			<param name="baudRate" value="115200" />
-			<param name="transmitRate" value="50.0" />
+			<param name="transmitRadio" value="0" />
 		</node>
-	</group>
--->
+	</group> 
+<!--	<group ns="rosbag">
+		<node pkg="rosbag" type="rosbag" name="rosbag" args="record /airframeState /radioData /systemState /servoData -o /usrsrc/FroboMind/bags/AIDED"/>
+	</group> -->
 </launch>
 

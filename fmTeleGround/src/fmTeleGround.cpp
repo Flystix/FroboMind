@@ -18,6 +18,14 @@
 #include "slip.hpp"
 #include "ttySetup.hpp"
 
+
+/**@brief Herrow...?
+ *
+ * Attaches to a serial port, using ttySetup(). Then waits for packages to be received and unsliped, using
+ * unslip_pkg(). The packages playload message type is determined from the header information and is
+ * then deserialized and published.
+ */
+
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "fmTeleNode");
 	ros::NodeHandle nh;
@@ -61,7 +69,7 @@ int main(int argc, char** argv) {
 		num[2] = 0x0A; // Insert \n
 		sscanf(num, "%02X", (uint32_t*) &msg_chksum); // Extract msg_chksum
 
-		// Calculate check sum
+		//! Calculate check sum
 		uint8_t calc_chksum = 0;
 		for (uint32_t i = 0; i < len - 2; i++)
 			calc_chksum += buf[i];
@@ -101,8 +109,9 @@ int main(int argc, char** argv) {
 					break;
 				default:
 					ROS_WARN("Unknown message type received : 0x%04X", msg_type);
+					/* No break */
 			}
-		} catch (ros::serialization::StreamOverrunException e) {
+		} catch (ros::serialization::StreamOverrunException& e) {
 			ROS_WARN("fmTeleGround (msg_type : %04X) : %s", msg_type, e.what());
 		}
 		ros::spinOnce();

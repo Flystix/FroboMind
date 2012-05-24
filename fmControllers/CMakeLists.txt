@@ -15,7 +15,6 @@ include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
 genaction()
 
 
-
 rosbuild_init()
 
 #set the default path for built executables to the "bin" directory
@@ -28,11 +27,12 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #uncomment if you have defined services
 # #rosbuild_gensrv()
 
+rosbuild_add_library(Control src/flystix/PID.cpp
+                         src/flystix/PID2.cpp)
 
-#common commands for building c++ executables and libraries
-rosbuild_add_library(flystixController src/flystix/PID.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
 rosbuild_add_executable(flystixController src/flystix/controller.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(flystixController Control)
+
+rosbuild_add_executable(flystixController2 src/flystix/controller2.cpp)
+target_link_libraries(flystixController2 Control)
+

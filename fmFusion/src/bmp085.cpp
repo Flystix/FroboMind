@@ -23,8 +23,8 @@ bmp085::bmp085(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate,
 
 	ROS_INFO("BMP085 : Initializing...");
 	i2c = i2c_ptr;
-	sem_init(&lock, 0, 1);
-	sem_wait(&lock);
+	sem_init(&dataLock, 0, 1);
+	sem_wait(&dataLock);
 
 	check += i2c->read_block(addr, BMP085_CALIBRATION_DATA_START, buf,
 			BMP085_CALIBRATION_DATA_LENGTH * 2);
@@ -73,7 +73,7 @@ bmp085::bmp085(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate,
 
 	OverSamplingSetting = 0x03;
 
-	sem_post(&lock);
+	sem_post(&dataLock);
 	dataCallback = 0;
 	P0 = 0;
 	long _P0 = 0;
@@ -114,12 +114,12 @@ void bmp085::pull(void) {
 	/* Handle prev. data request - Temperature*/
 	if (requested == bmp085_requested_temp) {
 		// printf("Acquiring temperature... ");
-		sem_wait(&lock);
+		sem_wait(&dataLock);
 		i2c->read_block(addr, 0xF6, buf, 2);
 		UT = (__u16) (buf[0] << 8) | (buf[1] << 0);
 		tempTimeStamp = ros::Time::now();
 		calc_temp();
-		sem_post(&lock);
+		sem_post(&dataLock);
 		requested = bmp085_requested_none;
 		// printf("Done!\n");
 	}
@@ -128,26 +128,26 @@ void bmp085::pull(void) {
 	if (requested == bmp085_requested_pres) {
 		// printf("Acquiring pressure... ");
 		i2c->read_block(addr, 0xF6, buf, 3);
-		sem_wait(&lock);
+		sem_wait(&dataLock);
 		UP = (__u32)(((buf[0] << 16)|
 						(buf[1] << 8)|
 						(buf[2] << 0)) >> (8 - OverSamplingSetting));
 		presTimeStamp = ros::Time::now();
 		calc_pres();
 		calc_alt();
-		sem_post(&lock);
+		sem_post(&dataLock);
 
 		if (dataCallback) {
 			fmMsgs::altitude myAlt;
 			/* Run callback function*/
 			// printf("Calling data callback...\n");
 			/* Make usr copy of data */
-			sem_wait(&lock);
+			sem_wait(&dataLock);
 			myAlt.altitude = alt;
 			myAlt.pressure = (float)CP * 0.01;
 			myAlt.temperature = (float)CT * 0.1;
 			myAlt.stamp = presTimeStamp;
-			sem_post(&lock);
+			sem_post(&dataLock);
 			(*dataCallback)(myAlt);
 		}
 		requested = bmp085_requested_none;

@@ -5,44 +5,27 @@
  *      Author: peter
  */
 
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <ros/ros.h>
-#include <fmMsgs/teleAir2Ground.h>
 #include <fmMsgs/airframeState.h>
-#include <fmMsgs/sysState.h>
-#include <fmMsgs/gps_state.h>
-ros::Publisher pub;
-double rate;
 
-fmMsgs::teleAir2Ground msg;
+FILE* file;
 
-void airframeStateCallback(const fmMsgs::airframeState::ConstPtr& data) {
-	msg.airframe = *data;
+void savetofile(const fmMsgs::airframeState::ConstPtr& msg) {
+	char buf[256];
 
-}
-
-void gpsCallback(const fmMsgs::gps_state::ConstPtr& data) {
-	msg.sys.gps_fix = data->fix;
-	msg.sys.gps_sats = data->sat;
-}
-
-void timerCallback(const ros::TimerEvent& e) {
-	pub.publish(msg);
+	sprintf(buf, "%5.2f %5.2f %5.2f", msg->header.stamp.toSec(), msg->pose.x, msg->pose.y);
+	ROS_INFO("writing \"%s\" to file", buf);
+	int len = sprintf(buf, "%s\n", buf);
+	fwrite (buf, 1, len,file);
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "i2cnode");
+	ros::init(argc, argv, "grapper");
 	ros::NodeHandle nh;
-	ros::NodeHandle np("~");
-
-	np.param<double>("refresh_rate", rate, 10);
-
-	ros::Subscriber sub = nh.subscribe("/airframeState", 1, airframeStateCallback);
-	ros::Subscriber gps_sub = nh.subscribe("/fmExtractors/gps_state_msg", 1, gpsCallback);
-	pub = nh.advertise<fmMsgs::teleAir2Ground>("/teleData", 1, false);
-	ros::Timer timer = nh.createTimer(ros::Duration(1/rate), timerCallback);
-
+	ros::NodeHandle n("~");
+	file = fopen("/home/peter/master/workspace/FroboMind/testStack/file.txt", "wb");
+	ros::Subscriber stateSubscriber = nh.subscribe("/airframeState", 1, savetofile);
 	ros::spin();
+	fclose(file);
 }

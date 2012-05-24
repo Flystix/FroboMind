@@ -43,7 +43,7 @@ private:
 	void calc_temp(); /* Should only be called when lock is acquired !*/
 	void calc_pres(); /* Should only be called when lock is acquired !*/
 	void calc_alt(); /* Should only be called when lock is acquired !*/
-	sem_t lock; /* Data acceess */
+	sem_t dataLock; /* Data acceess */
 	i2cfile *i2c;
 
 	ros::Time presTimeStamp;

@@ -1,6 +1,13 @@
 #ifndef SLIP_HPP_
 #define SLIP_HPP_
 
+
+#include <stdio.h>
+#include <iostream>
+#include <string.h>
+#include <ros/ros.h>
+#include <stdint.h>
+
 #define BUFFER_SIZE			64
 #define STA					0xC1
 #define END					0xCF

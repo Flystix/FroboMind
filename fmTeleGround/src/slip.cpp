@@ -1,11 +1,12 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <iostream>
-#include <string.h>
-#include <ros/ros.h>
-
 #include "slip.hpp"
 
+
+/**@brief SLIP's and transmits package via file descriptor.
+ *
+ * @param data_in Pointer to data buffer containing package.
+ * @param fd_out File descriptor of serial port, which the SLIPed package is to be transmittet.
+ * @param len Package length in bytes.
+ */
 void slip_pkg(void* data_in, int fd_out, uint32_t len) {
 	uint8_t* data = (uint8_t*)data_in;
 	uint8_t out[512];

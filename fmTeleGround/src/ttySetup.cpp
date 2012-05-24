@@ -9,6 +9,13 @@
 
 speed_t get_baud(int baudrate);
 
+/**@brief Sets up serial port using termios.
+ *
+ * The serial port is setup to non blocking read.
+ * @param baudRate Desired baudrate (as integer).
+ * @param path Path to serial port (/dev/ttyX).
+ * @return
+ */
 int ttySetup(int baudRate, const char* path) {
 	struct termios tio;
 //	struct termios stdio;
@@ -19,10 +26,9 @@ int ttySetup(int baudRate, const char* path) {
 	tio.c_iflag = IGNPAR; /* Ignore bytes with parity errors*/
 	tio.c_oflag = 0; /* Raw output */
 	tio.c_cflag = CS8 | CREAD | CLOCAL | CRTSCTS;
-//	tio.c_cflag = CS8 | CREAD | CLOCAL; // 8n1, see termios.h for more information
 	tio.c_lflag = 0; /* non- canonical */
 	tio.c_cc[VTIME] = 1; /* inter-character timer unused (5) */
-	tio.c_cc[VMIN] = 0; /* blocking read until 5 chars received (1)*/
+	tio.c_cc[VMIN] = 0; /* Dont block */
 
 	tty_fd = open(path, O_RDWR | O_NONBLOCK);
 	cfsetospeed(&tio, get_baud(baudRate));
@@ -33,6 +39,10 @@ int ttySetup(int baudRate, const char* path) {
 	return tty_fd;
 }
 
+/**@brief Integer to speed_t conversion.
+ * @param baudrate Integer baud rate
+ * @return speed_t baudrate.
+ */
 speed_t get_baud(int baudrate) {
 	switch (baudrate) {
 	case 0:

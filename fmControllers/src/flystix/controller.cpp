@@ -9,7 +9,7 @@
 #include "PID.hpp"
 #include <fmMsgs/airframeState.h>
 #include <fmMsgs/airframeControl.h>
-#include <fmMsgs/simData.h>
+//#include <fmMsgs/simData.h>
 #include <math.h>
 
 #define R2D(x) ((180*x)/M_PI)
@@ -18,7 +18,7 @@
 
 void stateCallback(const fmMsgs::airframeState::ConstPtr& msg);
 void radioCallback(const fmMsgs::airframeControl::ConstPtr& msg);
-void simModeCallback(const fmMsgs::simData::ConstPtr& msg);
+//void simModeCallback(const fmMsgs::simData::ConstPtr& msg);
 void sendServo(const ros::TimerEvent& e);
 
 double HeadingDesired = 0;
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 	ROS_INFO("flystixController : Subscribing to topics...");
 	ros::Subscriber stateSub = nh.subscribe("/airframeState", 1, stateCallback);
 	ros::Subscriber radioSub = nh.subscribe("/radioData", 1, radioCallback);
-	ros::Subscriber simSub = nh.subscribe("/simMode", 1, simModeCallback);
+//	ros::Subscriber simSub = nh.subscribe("/simMode", 1, simModeCallback);
 
 	ROS_INFO("flystixController : Spinning...");
 	ros::spin();
@@ -204,14 +204,14 @@ void sendServo(const ros::TimerEvent& e) {
 	controlPub.publish(msg);
 }
 
-void simModeCallback(const fmMsgs::simData::ConstPtr& msg) {
-	static uint8_t simMode = 0;
-
-	if (simMode != msg->mode) {
-		RollPID->Initialize(RollPID->getSetpoint());
-		PitchPID->Initialize(PitchPID->getSetpoint());
-		ROS_INFO("Resetting...");
-		simMode = msg->mode;
-	}
-}
+//void simModeCallback(const fmMsgs::simData::ConstPtr& msg) {
+//	static uint8_t simMode = 0;
+//
+//	if (simMode != msg->mode) {
+//		RollPID->Initialize(RollPID->getSetpoint());
+//		PitchPID->Initialize(PitchPID->getSetpoint());
+//		ROS_INFO("Resetting...");
+//		simMode = msg->mode;
+//	}
+//}
 

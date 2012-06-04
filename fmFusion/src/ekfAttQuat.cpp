@@ -123,17 +123,17 @@ void ekfAttQuat::makeW() {
 	DEBUG_STR("ekfAttQuat : done");
 }
 
-void ekfAttQuat::makeBaseQ() {
+void ekfAttQuat::makeQ() {
 	DEBUG_STR("ekfAttQuat : makeBaseQ...");
-	Q(1, 1) = 1.00000 * processVar;
-	Q(1, 2) = -0.17227 * processVar;
-	Q(1, 3) = 0.11208 * processVar;
-	Q(2, 1) = -0.17227 * processVar;
-	Q(2, 2) = 1.00000 * processVar;
-	Q(2, 3) = -0.25561 * processVar;
-	Q(3, 1) = 0.11208 * processVar;
-	Q(3, 2) = -0.25561 * processVar;
-	Q(3, 3) = 1.00000 * processVar;
+	Q(1, 1) = 1.00000 * processVar * dt;
+	Q(1, 2) = -0.17227 * processVar * dt;
+	Q(1, 3) = 0.11208 * processVar * dt;
+	Q(2, 1) = -0.17227 * processVar * dt;
+	Q(2, 2) = 1.00000 * processVar * dt;
+	Q(2, 3) = -0.25561 * processVar * dt;
+	Q(3, 1) = 0.11208 * processVar * dt;
+	Q(3, 2) = -0.25561 * processVar * dt;
+	Q(3, 3) = 1.00000 * processVar * dt;
 	DEBUG_STR("ekfAttQuat : Done");
 }
 
@@ -309,11 +309,18 @@ void ekfAttQuat::reset(double initPhi, double initTheta) {
 	double th = initTheta / 2;
 	double ps = 0;
 
+//	const double P0[] = {
+//		   10.0,  0.0,  0.0,  0.0,
+//	        0.0, 10.0,  0.0,  0.0,
+//	        0.0,  0.0, 10.0,  0.0,
+//	        0.0,  0.0,  0.0, 10.0
+//	};
+
 	const double P0[] = {
-		   10.0,  0.0,  0.0,  0.0,
-	        0.0, 10.0,  0.0,  0.0,
-	        0.0,  0.0, 10.0,  0.0,
-	        0.0,  0.0,  0.0, 10.0
+		    0.001,  0.0,  0.0,  0.0,
+	        0.0,  0.001,  0.0,  0.0,
+	        0.0,  0.0,  0.001,  0.0,
+	        0.0,  0.0,  0.0,  0.001
 	};
 	const double x0[] = {
 		cos(ph)*cos(th)*cos(ps) + sin(ph)*sin(th)*sin(ps),

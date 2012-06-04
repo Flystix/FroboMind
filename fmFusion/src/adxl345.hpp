@@ -86,10 +86,10 @@ public:
 	void getData(float (*)[3], ros::Time);
 	void setCallback(ros::NodeHandle*, ros::Rate, adxl_callBackFunc);
 	void timerCallback(const ros::TimerEvent&);
-	static const uint8_t addr = ADXL_ADDRESS;
+	static const __u8 addr = ADXL_ADDRESS;
 private:
 	void initi2c(i2cfile*);
-	uint8_t bw_rate, pwct_reg, data_format, fifo_ctl;
+	__u8 bw_rate, pwct_reg, data_format, fifo_ctl;
 	double freq;
 	sem_t lock;
 	i2cfile *i2c;

@@ -15,6 +15,7 @@ micromag::micromag(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate,
 	ROS_INFO("micromag : Initializing");
 	char str[80];
 	i2c = i2c_ptr;
+
 	sem_init(&lock, 0, 1);
 
 	double freq = 1 / rate.expectedCycleTime().toSec();
@@ -29,6 +30,8 @@ micromag::micromag(i2cfile* i2c_ptr, ros::NodeHandle* nh_ptr, ros::Rate rate,
 	sprintf(str, "Sampling @ %2.2f Hz", freq);
 	ROS_INFO("micromag : \t%s", str);
 	ROS_INFO("micromag : Initialization done");
+
+	// Probe device... Return 0 on failure..
 }
 
 micromag::~micromag() {
@@ -100,4 +103,8 @@ void micromag::setWindow(int window) {
 	window_reg = i2c->read_byte(addr, MICROMAG_WINDOW_REG);
 	scale = baseScale / window_reg;
 	ROS_INFO("micromag : Setting window %i", window_reg);
+}
+
+bool micromag::probe(i2cfile* i2c) {
+	return (i2c->read_word(addr, 0x0C) == 0xAA88);
 }

@@ -46,14 +46,15 @@ int i2cfile::write_byte(int slave, __u8 reg, __u8 data) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::write_byte : Failed to set %d as slave!\n", slave);
+		ROS_WARN("i2cfile::write_byte : Failed to set %d as slave!", slave);
 		return ret;
 	}
 
 	ret = write(file, buf, 2);
 	sem_post(&lock);
 	if (ret != 2)
-		ROS_WARN("Error writing 0x%02X to reg 0x%02X @ 0x%02X!\n", data, reg, slave);
+		ROS_WARN("i2cfile::write_byte : Error writing 0x%02X to reg 0x%02X @ 0x%02X!",
+		         data, reg, slave);
 
 	return ret;
 }
@@ -71,13 +72,13 @@ int i2cfile::write_word(int slave, __u8 reg, __u16 data) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::write_word: Failed to slaveess %d!\n", slave);
+		ROS_WARN("i2cfile::write_word : Failed to slaveess %d!", slave);
 		return ret;
 	}
 	ret = write(file, buf, 3);
 	sem_post(&lock);
 	if (ret != 3)
-		ROS_WARN("Error writing 0x%04X to reg 0x%02X @ 0x%02X!\n", data, reg, slave);
+		ROS_WARN("i2cfile::write_word : Error writing 0x%04X to reg 0x%02X @ 0x%02X!", data, reg, slave);
 
 	return ret;
 }
@@ -86,7 +87,7 @@ int i2cfile::write_block(int slave, __u8 reg, void* data, int nBytes) {
 	int ret;
 
 	if (!buf) {
-		ROS_WARN("Error allocating %i bytes of memory!\n", nBytes + 1);
+		ROS_WARN("i2cfile::write_block : Error allocating %i bytes of memory!", nBytes + 1);
 		return -1;
 	}
 
@@ -99,14 +100,15 @@ int i2cfile::write_block(int slave, __u8 reg, void* data, int nBytes) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::write_byte : Failed to set %d as slave!\n", slave);
+		ROS_WARN("i2cfile::write_byte : Failed to set %d as slave!", slave);
 		return ret;
 	}
 	ret = write(file, buf, nBytes + 1);
 
 	sem_post(&lock);
 	if (ret != nBytes + 1)
-		ROS_WARN("Error writing %i bytes to reg 0x%02X @ 0x%02X!\n", nBytes, reg, slave);
+		ROS_WARN("i2cfile::write_byte : Error writing %i bytes to reg 0x%02X @ 0x%02X!",
+		         nBytes, reg, slave);
 
 	free(buf);
 	return ret;
@@ -118,19 +120,19 @@ __u8 i2cfile::read_byte(int slave, __u8 reg) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_byte : Failed to slaveess slave %d!\n", slave);
+		ROS_WARN("i2cfile::read_byte : Failed to slaveess slave %d!", slave);
 		return ret;
 	}
 	ret = write(file, &reg, 1);
 	if(ret != 1) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_byte : Failed to set register %d @ %d!\n", reg, slave);
+		ROS_WARN("i2cfile::read_byte : Failed to set register %d @ %d!", reg, slave);
 		return ret;
 	}
 	ret = read(file, &buf, 1);
 	sem_post(&lock);
 	if (ret != 1) {
-		ROS_WARN("i2cfile::read_byte : Failed to read register %d @ %d!\n", reg, slave);
+		ROS_WARN("i2cfile::read_byte : Failed to read register %d @ %d!", reg, slave);
 		return ret;
 	}
 	return buf;
@@ -142,19 +144,19 @@ __u16 i2cfile::read_word(int slave, __u8 reg) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_word : Failed to slaveess slave %d!\n", slave);
+		ROS_WARN("i2cfile::read_word : Failed to slaveess slave %d!", slave);
 		return ret;
 	}
 	ret = write(file, &reg, 1);
 	if(ret != 1) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_word : Failed to set register %d @ %d!\n", reg, slave);
+		ROS_WARN("i2cfile::read_word : Failed to set register %d @ %d!", reg, slave);
 		return ret;
 	}
 	ret = read(file, &buf, 2);
 	sem_post(&lock);
 	if (ret != 2) {
-		ROS_WARN("i2cfile::read_word : Failed to read register %d @ %d!\n", reg, slave);
+		ROS_WARN("i2cfile::read_word : Failed to read register %d @ %d!", reg, slave);
 		return ret;
 	}
 	return buf;
@@ -166,19 +168,19 @@ int i2cfile::read_block(int slave, __u8 reg, void* data, int nBytes) {
 	ret = ioctl(file, I2C_SLAVE, slave);
 	if (ret < 0) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_block : Failed to slaveess slave %d!\n", slave);
+		ROS_WARN("i2cfile::read_block : Failed to slaveess slave %d!", slave);
 		return ret;
 	}
 	ret = write(file, &reg, 1);
 	if(ret != 1) {
 		sem_post(&lock);
-		ROS_WARN("i2cfile::read_block : Failed to set register %d @ %d!\n", reg, slave);
+		ROS_WARN("i2cfile::read_block : Failed to set register %d @ %d!", reg, slave);
 		return ret;
 	}
 	ret = read(file, data, nBytes);
 	sem_post(&lock);
 	if (ret != nBytes)
-		ROS_WARN("i2cfile::read_block : Failed to read registers [%d-%d] @ %d!\n", reg, reg+nBytes, slave);
+		ROS_WARN("i2cfile::read_block : Failed to read registers [%d-%d] @ %d!", reg, reg+nBytes, slave);
 
 	return ret;
 }

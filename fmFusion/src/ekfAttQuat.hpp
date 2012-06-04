@@ -19,8 +19,8 @@ public:
 protected:
 	void makeBaseV(); // Measure
 	void makeBaseR(); // Measure
-	void makeBaseQ(); // Time
-//	void makeQ(); // Time
+//	void makeBaseQ(); // Time
+	void makeQ(); // Time
 
 	void makeA(); 		// Time
 	void makeH(); 		// Measure

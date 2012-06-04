@@ -4,7 +4,6 @@
  *  Created on: Feb 7, 2012
  *      Author: peter
  */
-
 #include "adxl345.hpp"
 #include "i2cfile.hpp"
 #include <stdio.h>

@@ -211,6 +211,12 @@ void kalman::accCallback(const fmMsgs::accelerometer& msg) {
 	sem_wait(&attEstLock);
 	attitudeEstimator->measureUpdateStep(z);
 	sem_post(&attEstLock);
+
+	ekfAttQuat::Vector xAtt(2);
+	xAtt = attitudeEstimator->getXEuler();
+	/* Save back to airframe state */
+	state.pose.x = xAtt(1);
+	state.pose.y = xAtt(2);
 }
 
 void kalman::magCallback(const fmMsgs::magnetometer& msg) {

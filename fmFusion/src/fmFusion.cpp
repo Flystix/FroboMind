@@ -26,6 +26,7 @@
 #define SUBSCRIBE_SENSORS 			0x02 // If 1 -> subscribe to sensors
 #define RUN_ESTIMATOR  				0x04 // If 1-> run estimator and publish state estimate 0-> dont...
 #define PUBLISH_SENSORS    			0x08 // If 1-> publish raw sensor data, 0-> dont...
+#define REMOTE						0x10 // Only sample AVR and publish radioData
 
 ros::Publisher radioPublisher; /* Publish from avrDataCallback (if ...?)*/
 ros::Publisher batteryPublisher; /* Publish from avrDataCallback (if ...?)*/
@@ -50,6 +51,7 @@ avr* myAvr = 0;
 i2cfile* i2c;
 adxl345* myAcc;
 micromag* myMag;
+hmc5883l* myBackupMag;
 bmp085* myAlt;
 itg3200* myGyro;
 
@@ -62,8 +64,12 @@ void magDataCallback(const fmMsgs::magnetometer&);
 void altDataCallback(const fmMsgs::altitude&);
 void gpsDataCallback(const fmMsgs::gps_state&);
 void airspeedDataCallback(const fmMsgs::airSpeed&);
-void avrDataCallback(const fmMsgs::airframeControl&, const fmMsgs::airSpeed&,
+void avrDataCallback(const fmMsgs::airframeControl&,
+                     const fmMsgs::airSpeed&,
                      const fmMsgs::battery&);
+void remoteCallback(const fmMsgs::airframeControl&,
+                    const fmMsgs::airSpeed&,
+                    const fmMsgs::battery&);
 void avrSetControlsCallback(const fmMsgs::airframeControl&);
 void pubCallback(const ros::TimerEvent&);
 
@@ -90,12 +96,16 @@ int main(int argc, char** argv) {
 	} else if (!modestr.compare("all")) {
 		mode = SAMPLE_SENSORS | PUBLISH_SENSORS | RUN_ESTIMATOR;
 		ROS_WARN("Mode set ALL : Samples and publishes sensors. Estimates and publishes state");
+	} else if (!modestr.compare("remote")) {
+		mode = REMOTE;
+		ROS_WARN("Mode set Remote : samples and publishes radio data");
 	} else {
 		ROS_WARN("Error parsing mode. Please provide mode: ");
 		ROS_WARN("mode = RAW    : Sample and publish sensors");
 		ROS_WARN("mode = FLIGHT : Sample sensors, estimate and publish state");
 		ROS_WARN("mode = SIM    : Subscribe to sensors, estimate and publish state");
 		ROS_WARN("mode = ALL    : Sample and publish sensors. Estimate and publish state");
+		ROS_WARN("mode = REMOTE : Sample and publish radio data");
 		ROS_WARN("Defaulting to FLIGHT");
 		mode = SAMPLE_SENSORS | RUN_ESTIMATOR;
 	}
@@ -136,13 +146,28 @@ int main(int argc, char** argv) {
 		i2c = new i2cfile(3);
 		myGyro = new itg3200(i2c, &nh, ros::Rate(gyroRate), &gyroDataCallback);
 		myAcc = new adxl345(i2c, &nh, ros::Rate(accRate), &accDataCallback);
-		myMag = new micromag(i2c, &nh, ros::Rate(magRate), &magDataCallback, magWindow);
 		myAlt = new bmp085(i2c, &nh, ros::Rate(barRate), &altDataCallback);
 		myAvr = new avr(i2c, &nh, ros::Rate(avrRate), &avrDataCallback);
+
+
+		if (micromag::probe(i2c)) {
+			ROS_INFO("Probing MicroMag succeeded...");
+			myMag = new micromag(i2c, &nh, ros::Rate(magRate), &magDataCallback, magWindow);
+		} else {
+			ROS_INFO("Probing MicroMag failed, using HMC5883L...");
+			myBackupMag = new hmc5883l(i2c, &nh, ros::Rate(magRate), &magDataCallback);
+		}
 
 		radioPublisher = nh.advertise<fmMsgs::airframeControl> ("/radioData", 1);
 		batteryPublisher = nh.advertise<fmMsgs::battery> ("/batteryData", 1);
 		servoSubscriber = nh.subscribe("/servoData", 1, avrSetControlsCallback);
+	}else if (mode & REMOTE) {
+		ROS_INFO("fmFusion : Remote...");
+		double avrRate;
+		n.param<double> ("avrRate", avrRate, 50);
+		i2c = new i2cfile(3);
+		myAvr = new avr(i2c, &nh, ros::Rate(avrRate), &remoteCallback);
+		radioPublisher = nh.advertise<fmMsgs::airframeControl> ("/radioData", 1);
 	}
 
 	if (mode & SUBSCRIBE_SENSORS) { /* Simulating :  Sensor data is read from external rosbag */
@@ -197,6 +222,14 @@ void avrDataCallback(const fmMsgs::airframeControl& control,
 		batteryPublisher.publish(bat);
 		radioPublisher.publish(control);
 	}
+}
+
+/* myAvr as remote @ i2c */
+void remoteCallback(const fmMsgs::airframeControl& control,
+                     const fmMsgs::airSpeed& airspeed,
+                     const fmMsgs::battery& bat) {
+	if (mode & REMOTE)
+		radioPublisher.publish(control);
 }
 /* gyroSubscriber @ "/gyroData" || myGyro @ i2c*/
 void gyroDataCallback(const fmMsgs::gyroscope& myGyroData) {
@@ -254,3 +287,4 @@ void pubCallback(const ros::TimerEvent& e) {
 		statePublisher.publish(state);
 	}
 }
+

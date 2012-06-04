@@ -30,7 +30,6 @@ rosbuild_add_library(estimators src/ekfAttQuat.cpp
                                 src/ekfPos.cpp
                                 src/kalman.cpp)
 
-
 rosbuild_add_executable(fmFusion src/fmFusion.cpp)
 target_link_libraries(fmFusion sensors estimators)
 

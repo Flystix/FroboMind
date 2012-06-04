@@ -28,6 +28,7 @@ typedef void (*micromag_callBackFunc)(const fmMsgs::magnetometer&);
 class micromag {
 public:
 	micromag(i2cfile*, ros::NodeHandle*, ros::Rate, micromag_callBackFunc, int);
+	static bool probe(i2cfile*);
 	~micromag(void);
 	void pull();
 	void getData(float (*)[3], ros::Time*);
